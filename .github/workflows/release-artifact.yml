@@ -98,3 +98,86 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" dist/* \
             --title "chronary-cli ${GITHUB_REF_NAME}" \
             --notes-file RELEASE_NOTES.txt
+
+      - name: Update homebrew-tap
+        # Renders Formula/chronary.rb with the new version + checksums and
+        # pushes to Chronary/homebrew-tap so users can `brew install chronary`.
+        # Gracefully skips if HOMEBREW_TAP_TOKEN is missing (private-phase
+        # dress rehearsals, or if the tap isn't yet wired up).
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${HOMEBREW_TAP_TOKEN:-}" ]; then
+            echo "HOMEBREW_TAP_TOKEN not set; skipping homebrew-tap update."
+            exit 0
+          fi
+          version="${GITHUB_REF_NAME#v}"
+
+          sha_darwin_amd64=$(awk -v f="chronary_${version}_darwin_amd64.tar.gz" '$2 ~ f {print $1}' dist/sha256sums.txt)
+          sha_darwin_arm64=$(awk -v f="chronary_${version}_darwin_arm64.tar.gz" '$2 ~ f {print $1}' dist/sha256sums.txt)
+          sha_linux_amd64=$(awk  -v f="chronary_${version}_linux_amd64.tar.gz"  '$2 ~ f {print $1}' dist/sha256sums.txt)
+          sha_linux_arm64=$(awk  -v f="chronary_${version}_linux_arm64.tar.gz"  '$2 ~ f {print $1}' dist/sha256sums.txt)
+
+          for var in sha_darwin_amd64 sha_darwin_arm64 sha_linux_amd64 sha_linux_arm64; do
+            if [ -z "${!var}" ]; then
+              echo "Missing checksum for $var. Contents of dist/sha256sums.txt:" >&2
+              cat dist/sha256sums.txt >&2
+              exit 1
+            fi
+          done
+
+          cat > /tmp/chronary.rb <<EOF
+          class Chronary < Formula
+            desc "Official Chronary CLI"
+            homepage "https://chronary.ai"
+            version "${version}"
+            license "Apache-2.0"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/Chronary/chronary-cli/releases/download/v${version}/chronary_${version}_darwin_arm64.tar.gz"
+                sha256 "${sha_darwin_arm64}"
+              end
+              on_intel do
+                url "https://github.com/Chronary/chronary-cli/releases/download/v${version}/chronary_${version}_darwin_amd64.tar.gz"
+                sha256 "${sha_darwin_amd64}"
+              end
+            end
+
+            on_linux do
+              on_arm do
+                url "https://github.com/Chronary/chronary-cli/releases/download/v${version}/chronary_${version}_linux_arm64.tar.gz"
+                sha256 "${sha_linux_arm64}"
+              end
+              on_intel do
+                url "https://github.com/Chronary/chronary-cli/releases/download/v${version}/chronary_${version}_linux_amd64.tar.gz"
+                sha256 "${sha_linux_amd64}"
+              end
+            end
+
+            def install
+              bin.install "chronary"
+            end
+
+            test do
+              system "#{bin}/chronary", "--version"
+            end
+          end
+          EOF
+
+          workdir=$(mktemp -d)
+          git clone --depth 1 "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/Chronary/homebrew-tap.git" "$workdir"
+          mkdir -p "$workdir/Formula"
+          cp /tmp/chronary.rb "$workdir/Formula/chronary.rb"
+          cd "$workdir"
+          git config user.email "noreply@chronary.ai"
+          git config user.name "chronary-release-bot"
+          git add Formula/chronary.rb
+          if git diff --cached --quiet; then
+            echo "Formula unchanged — same version and checksums."
+            exit 0
+          fi
+          git commit -m "chronary ${version}"
+          git push origin main
