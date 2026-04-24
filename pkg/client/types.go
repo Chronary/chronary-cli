@@ -1,0 +1,281 @@
+package client
+
+import (
+	"encoding/json"
+	"time"
+)
+
+// Agent represents a Chronary agent resource.
+type Agent struct {
+	ID          string          `json:"id"`
+	Name        string          `json:"name"`
+	Type        string          `json:"type"`
+	Description *string         `json:"description,omitempty"`
+	Status      string          `json:"status"`
+	Metadata    json.RawMessage `json:"metadata"`
+	CreatedAt   time.Time       `json:"createdAt"`
+	UpdatedAt   time.Time       `json:"updatedAt"`
+}
+
+// ListResponse wraps a paginated list from the API.
+type ListResponse[T any] struct {
+	Data   []T `json:"data"`
+	Total  int `json:"total"`
+	Limit  int `json:"limit"`
+	Offset int `json:"offset"`
+}
+
+// Calendar represents a Chronary calendar resource.
+type Calendar struct {
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`
+	Timezone  string          `json:"timezone"`
+	AgentID   *string         `json:"agentId,omitempty"`
+	Metadata  json.RawMessage `json:"metadata"`
+	ICalURL   string          `json:"ical_url,omitempty"`
+	CreatedAt time.Time       `json:"createdAt"`
+}
+
+// Event represents a Chronary event resource.
+type Event struct {
+	ID            string          `json:"id"`
+	CalendarID    string          `json:"calendarId"`
+	Title         string          `json:"title"`
+	Description   *string         `json:"description,omitempty"`
+	StartTime     time.Time       `json:"startTime"`
+	EndTime       time.Time       `json:"endTime"`
+	AllDay        bool            `json:"allDay"`
+	Status        string          `json:"status"`
+	Source        string          `json:"source"`
+	Metadata      json.RawMessage `json:"metadata"`
+	HoldExpiresAt *time.Time      `json:"holdExpiresAt,omitempty"`
+	HoldPriority  *int            `json:"holdPriority,omitempty"`
+	CreatedAt     time.Time       `json:"createdAt"`
+	UpdatedAt     time.Time       `json:"updatedAt"`
+}
+
+// Webhook represents a Chronary webhook subscription.
+type Webhook struct {
+	ID        string    `json:"id"`
+	URL       string    `json:"url"`
+	Events    []string  `json:"events"`
+	Active    bool      `json:"active"`
+	Secret    string    `json:"secret,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+// WebhookDelivery represents a single delivery attempt record.
+type WebhookDelivery struct {
+	ID             string     `json:"id"`
+	SubscriptionID string     `json:"subscription_id"`
+	EventType      string     `json:"event_type"`
+	Status         string     `json:"status"`
+	Attempts       int        `json:"attempts"`
+	LastAttemptAt  *time.Time `json:"last_attempt_at"`
+	NextRetryAt    *time.Time `json:"next_retry_at"`
+	CreatedAt      time.Time  `json:"created_at"`
+	Payload        any        `json:"payload,omitempty"`
+}
+
+// WebhookDeliveryStats contains aggregate delivery counts.
+type WebhookDeliveryStats struct {
+	Pending   int `json:"pending"`
+	Delivered int `json:"delivered"`
+	Failed    int `json:"failed"`
+}
+
+// WebhookDeliveryListResponse is the response from GET /v1/webhooks/:id/deliveries.
+type WebhookDeliveryListResponse struct {
+	Data   []WebhookDelivery    `json:"data"`
+	Total  int                  `json:"total"`
+	Limit  int                  `json:"limit"`
+	Offset int                  `json:"offset"`
+	Stats  WebhookDeliveryStats `json:"stats"`
+}
+
+// AvailabilitySlot represents a free time slot.
+type AvailabilitySlot struct {
+	Start string `json:"start"`
+	End   string `json:"end"`
+}
+
+// BusyBlock represents a busy time block.
+type BusyBlock struct {
+	Start string  `json:"start"`
+	End   string  `json:"end"`
+	Title *string `json:"title,omitempty"`
+}
+
+// AvailabilityResponse is the shape returned by availability endpoints.
+type AvailabilityResponse struct {
+	Slots []AvailabilitySlot `json:"slots"`
+	Busy  []BusyBlock        `json:"busy,omitempty"`
+}
+
+// UsageCounter tracks used vs limit for a resource.
+type UsageCounter struct {
+	Used  int `json:"used"`
+	Limit int `json:"limit"`
+}
+
+// UsageResponse is the shape returned by GET /v1/usage.
+type UsageResponse struct {
+	PeriodStart         string       `json:"period_start"`
+	PeriodEnd           string       `json:"period_end"`
+	Plan                string       `json:"plan"`
+	Agents              UsageCounter `json:"agents"`
+	Calendars           UsageCounter `json:"calendars"`
+	Events              UsageCounter `json:"events"`
+	APICalls            UsageCounter `json:"api_calls"`
+	Webhooks            UsageCounter `json:"webhooks"`
+	AvailabilityQueries UsageCounter `json:"availability_queries"`
+	ICalSubscriptions   UsageCounter `json:"ical_subscriptions"`
+}
+
+// ScopedAPIKey represents an agent-scoped API key.
+type ScopedAPIKey struct {
+	ID        string    `json:"id"`
+	Mode      string    `json:"mode"`
+	KeyPrefix string    `json:"key_prefix"`
+	AgentID   string    `json:"agent_id"`
+	Label     *string   `json:"label"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// CreatedScopedAPIKey is the create response for an agent-scoped API key.
+type CreatedScopedAPIKey struct {
+	ScopedAPIKey
+	Key string `json:"key"`
+}
+
+// ScopedAPIKeyListResponse is the shape returned by GET /v1/keys.
+type ScopedAPIKeyListResponse struct {
+	Keys []ScopedAPIKey `json:"keys"`
+}
+
+// ICalSubscription represents an iCal feed subscription.
+type ICalSubscription struct {
+	ID           string    `json:"id"`
+	AgentID      string    `json:"agentId"`
+	CalendarID   string    `json:"calendarId"`
+	URL          string    `json:"url"`
+	Label        *string   `json:"label,omitempty"`
+	Status       string    `json:"status"`
+	LastSyncedAt *string   `json:"lastSyncedAt,omitempty"`
+	LastError    *string   `json:"lastError,omitempty"`
+	CreatedAt    time.Time `json:"createdAt"`
+}
+
+// HealthResponse is the shape returned by GET /health.
+type HealthResponse struct {
+	Status string `json:"status"`
+	TS     string `json:"ts"`
+}
+
+// CalendarContext is the temporal snapshot for a calendar.
+type CalendarContext struct {
+	CalendarID   string  `json:"calendar_id"`
+	Now          string  `json:"now"`
+	AgentStatus  string  `json:"agent_status"`
+	CurrentEvent *Event  `json:"current_event,omitempty"`
+	NextEvent    *Event  `json:"next_event,omitempty"`
+	RecentEvents []Event `json:"recent_events"`
+	Upcoming     []Event `json:"upcoming"`
+}
+
+// AvailabilityRules is the buffer+working-hours config for a calendar.
+type AvailabilityRules struct {
+	ID                  string          `json:"id"`
+	CalendarID          string          `json:"calendar_id"`
+	BufferBeforeMinutes int             `json:"buffer_before_minutes"`
+	BufferAfterMinutes  int             `json:"buffer_after_minutes"`
+	WorkingHours        json.RawMessage `json:"working_hours,omitempty"`
+	Timezone            string          `json:"timezone"`
+	CreatedAt           time.Time       `json:"created_at"`
+	UpdatedAt           time.Time       `json:"updated_at"`
+}
+
+// ProposalSlot is a candidate time slot for a scheduling proposal.
+// The scheduling API emits snake_case keys (see formatSlot in the service).
+type ProposalSlot struct {
+	ID         *string   `json:"id,omitempty"`
+	StartTime  time.Time `json:"start_time"`
+	EndTime    time.Time `json:"end_time"`
+	Weight     float64   `json:"weight"`
+	CalendarID *string   `json:"calendar_id,omitempty"`
+}
+
+// ProposalResponse captures an agent's response to a proposal.
+type ProposalResponse struct {
+	ID             string         `json:"id"`
+	AgentID        string         `json:"agent_id"`
+	Response       string         `json:"response"`
+	SelectedSlotID *string        `json:"selected_slot_id,omitempty"`
+	CounterSlots   []ProposalSlot `json:"counter_slots,omitempty"`
+	Message        *string        `json:"message,omitempty"`
+	CreatedAt      time.Time      `json:"created_at"`
+}
+
+// Proposal represents a scheduling proposal with slots and responses.
+type Proposal struct {
+	ID                  string             `json:"id"`
+	Title               string             `json:"title"`
+	Description         *string            `json:"description,omitempty"`
+	OrganizerAgentID    string             `json:"organizer_agent_id"`
+	ParticipantAgentIDs []string           `json:"participant_agent_ids"`
+	CalendarID          string             `json:"calendar_id"`
+	Status              string             `json:"status"`
+	IsTest              bool               `json:"is_test"`
+	ExpiresAt           *time.Time         `json:"expires_at,omitempty"`
+	ResolvedSlot        *ProposalSlot      `json:"resolved_slot,omitempty"`
+	CreatedEventID      *string            `json:"created_event_id,omitempty"`
+	Metadata            json.RawMessage    `json:"metadata"`
+	Slots               []ProposalSlot     `json:"slots,omitempty"`
+	Responses           []ProposalResponse `json:"responses,omitempty"`
+	CreatedAt           time.Time          `json:"created_at"`
+	UpdatedAt           time.Time          `json:"updated_at"`
+}
+
+// ResolveProposalResult is the shape returned by POST .../resolve.
+type ResolveProposalResult struct {
+	Status       string        `json:"status"`
+	ResolvedSlot *ProposalSlot `json:"resolved_slot,omitempty"`
+	Reason       *string       `json:"reason,omitempty"`
+}
+
+// CancelProposalResult is the shape returned by POST .../cancel.
+type CancelProposalResult struct {
+	Status string `json:"status"`
+}
+
+// PlanLimits mirrors the machine-readable quota caps returned in /v1/plans.
+// nil fields indicate unlimited.
+type PlanLimits struct {
+	Agents              *int `json:"agents"`
+	Calendars           *int `json:"calendars"`
+	Events              *int `json:"events"`
+	APICalls            *int `json:"api_calls"`
+	WebhookDeliveries   *int `json:"webhook_deliveries"`
+	AvailabilityQueries *int `json:"availability_queries"`
+	ICalSubscriptions   *int `json:"ical_subscriptions"`
+	Proposals           *int `json:"proposals"`
+}
+
+// Plan is one tier in the public plan catalog.
+type Plan struct {
+	ID              string      `json:"id"`
+	Name            string      `json:"name"`
+	Tagline         string      `json:"tagline"`
+	Price           *int        `json:"price"`
+	Currency        *string     `json:"currency"`
+	Limits          *PlanLimits `json:"limits"`
+	DisplayFeatures []string    `json:"display_features"`
+	Recommended     bool        `json:"recommended"`
+	CustomPricing   bool        `json:"custom_pricing,omitempty"`
+	ContactURL      string      `json:"contact_url,omitempty"`
+}
+
+// PlansListResponse is the shape returned by GET /v1/plans.
+type PlansListResponse struct {
+	Plans []Plan `json:"plans"`
+}
