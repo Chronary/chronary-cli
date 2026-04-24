@@ -45,7 +45,7 @@ jobs:
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
-          mkdir -p dist
+          mkdir -p dist dist/bin
 
           targets=(
             "linux amd64"
@@ -53,6 +53,7 @@ jobs:
             "darwin amd64"
             "darwin arm64"
             "windows amd64"
+            "windows arm64"
           )
 
           for target in "${targets[@]}"; do
@@ -79,10 +80,62 @@ jobs:
               tar -C "$workdir" -czf "${archive}.tar.gz" "$binary"
             fi
 
+            # Keep linux binaries for nfpm .deb / .rpm packaging.
+            if [ "$goos" = "linux" ]; then
+              mkdir -p "dist/bin/linux_${goarch}"
+              cp "${workdir}/${binary}" "dist/bin/linux_${goarch}/chronary"
+            fi
+
             rm -rf "$workdir"
           done
 
-          sha256sum dist/* > dist/sha256sums.txt
+      - name: Build .deb and .rpm packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+
+          # Install nfpm (pinned version for reproducibility).
+          nfpm_version="2.42.0"
+          curl -sSfL "https://github.com/goreleaser/nfpm/releases/download/v${nfpm_version}/nfpm_${nfpm_version}_Linux_x86_64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin nfpm
+          nfpm --version
+
+          for arch in amd64 arm64; do
+            cat > /tmp/nfpm.yaml <<YAML
+          name: chronary
+          arch: ${arch}
+          version: ${version}
+          platform: linux
+          section: utils
+          priority: optional
+          maintainer: Chronary <support@chronary.ai>
+          description: Official Chronary CLI — calendar-as-a-service for AI agents.
+          vendor: Chronary
+          homepage: https://chronary.ai
+          license: Apache-2.0
+          contents:
+            - src: dist/bin/linux_${arch}/chronary
+              dst: /usr/local/bin/chronary
+          YAML
+
+            nfpm package --config /tmp/nfpm.yaml \
+              --target "dist/chronary_${version}_linux_${arch}.deb" \
+              --packager deb
+            nfpm package --config /tmp/nfpm.yaml \
+              --target "dist/chronary_${version}_linux_${arch}.rpm" \
+              --packager rpm
+          done
+
+          # Clean up the staging bin dir so it doesn't ship in the release.
+          rm -rf dist/bin
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum chronary_* > sha256sums.txt
 
       - name: Attest build provenance for release archives
         # Free-tier orgs can only attest in PUBLIC repos. Auto-enables on flip.
@@ -92,6 +145,8 @@ jobs:
           subject-path: |
             dist/chronary_*.tar.gz
             dist/chronary_*.zip
+            dist/chronary_*.deb
+            dist/chronary_*.rpm
 
       - name: Create GitHub Release
         run: |
