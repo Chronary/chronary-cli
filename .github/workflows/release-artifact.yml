@@ -1,0 +1,100 @@
+name: Release Artifact
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Validate release manifest
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          manifest = json.load(open(".chronary-release.json", "r", encoding="utf-8"))
+          if manifest["artifact"] != "cli":
+              raise SystemExit("Expected artifact cli")
+          if manifest["public_tag"] != os.environ["GITHUB_REF_NAME"]:
+              raise SystemExit("Tag mismatch between manifest and workflow ref")
+          PY
+          test -f RELEASE_NOTES.txt
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build release archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p dist
+
+          targets=(
+            "linux amd64"
+            "linux arm64"
+            "darwin amd64"
+            "darwin arm64"
+            "windows amd64"
+          )
+
+          for target in "${targets[@]}"; do
+            read -r goos goarch <<<"$target"
+            workdir="$(mktemp -d)"
+            binary="chronary"
+            archive="dist/chronary_${version}_${goos}_${goarch}"
+            archive_path="${PWD}/${archive}"
+
+            if [ "$goos" = "windows" ]; then
+              binary="chronary.exe"
+            fi
+
+            GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 \
+              go build -trimpath -ldflags "-s -w -X main.version=${version}" \
+              -o "${workdir}/${binary}" ./cmd/chronary
+
+            if [ "$goos" = "windows" ]; then
+              (
+                cd "$workdir"
+                zip -q "${archive_path}.zip" "$binary"
+              )
+            else
+              tar -C "$workdir" -czf "${archive}.tar.gz" "$binary"
+            fi
+
+            rm -rf "$workdir"
+          done
+
+          sha256sum dist/* > dist/sha256sums.txt
+
+      - name: Attest build provenance for release archives
+        # Free-tier orgs can only attest in PUBLIC repos. Auto-enables on flip.
+        if: github.event.repository.visibility == 'public'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/chronary_*.tar.gz
+            dist/chronary_*.zip
+
+      - name: Create GitHub Release
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --title "chronary-cli ${GITHUB_REF_NAME}" \
+            --notes-file RELEASE_NOTES.txt
