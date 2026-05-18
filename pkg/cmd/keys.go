@@ -60,7 +60,6 @@ func newKeysListCmd() *cobra.Command {
 				}
 				rows[i] = []string{
 					key.ID,
-					key.Mode,
 					key.AgentID,
 					label,
 					key.KeyPrefix,
@@ -69,7 +68,7 @@ func newKeysListCmd() *cobra.Command {
 			}
 
 			output.RenderTable(output.TableDef{
-				Headers: []string{"ID", "Mode", "Agent", "Label", "Prefix", "Created"},
+				Headers: []string{"ID", "Agent", "Label", "Prefix", "Created"},
 				Rows:    rows,
 			}, nc)
 
@@ -103,14 +102,8 @@ func newKeysCreateCmd() *cobra.Command {
 					return fmt.Errorf("--agent is required unless using @file")
 				}
 
-				mode, _ := cmd.Flags().GetString("mode")
-				if mode != "live" && mode != "test" {
-					return fmt.Errorf("--mode must be one of: live, test")
-				}
-
 				payload = map[string]any{
 					"agent_id": agentID,
-					"mode":     mode,
 				}
 
 				if cmd.Flags().Changed("label") {
@@ -141,11 +134,10 @@ func newKeysCreateCmd() *cobra.Command {
 				label = *created.Label
 			}
 
-			fmt.Printf("Created agent-scoped key %s for %s (%s mode).\n", created.ID, created.AgentID, created.Mode)
+			fmt.Printf("Created agent-scoped key %s for %s.\n", created.ID, created.AgentID)
 			fmt.Printf("Key:      %s\n", created.Key)
 			fmt.Printf("Prefix:   %s\n", created.KeyPrefix)
 			fmt.Printf("Agent:    %s\n", created.AgentID)
-			fmt.Printf("Mode:     %s\n", created.Mode)
 			fmt.Printf("Label:    %s\n", label)
 			fmt.Printf("Created:  %s\n", created.CreatedAt.Format("2006-01-02 15:04:05"))
 			fmt.Println("Store this key now. It will not be shown in full again.")
@@ -154,7 +146,6 @@ func newKeysCreateCmd() *cobra.Command {
 	}
 
 	cmd.Flags().String("agent", "", "Agent ID to scope the key to")
-	cmd.Flags().String("mode", "", "Key mode: live or test")
 	cmd.Flags().String("label", "", "Optional label for the key")
 
 	return cmd

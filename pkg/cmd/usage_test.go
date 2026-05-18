@@ -29,7 +29,7 @@ func TestUsageCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"usage", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"usage", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 

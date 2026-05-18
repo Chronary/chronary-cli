@@ -3,11 +3,12 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
+	"net/url"
+	"strconv"
 
-	"github.com/charmbracelet/huh"
 	"github.com/Chronary/chronary-cli/pkg/client"
 	"github.com/Chronary/chronary-cli/pkg/output"
+	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
 
@@ -47,15 +48,13 @@ func newICalListCmd() *cobra.Command {
 			}
 
 			all, _ := cmd.Flags().GetBool("all")
-			filterParams := []string{}
+			filterParams := url.Values{}
 			if v, _ := cmd.Flags().GetString("status"); v != "" {
-				filterParams = append(filterParams, "status="+v)
+				filterParams.Set("status", v)
 			}
 
 			path := fmt.Sprintf("/v1/agents/%s/ical-subscriptions", agentID)
-			if len(filterParams) > 0 {
-				path += "?" + strings.Join(filterParams, "&")
-			}
+			path = appendQueryParams(path, filterParams)
 
 			var body []byte
 			if all {
@@ -68,20 +67,14 @@ func newICalListCmd() *cobra.Command {
 					return fmt.Errorf("building response: %w", err)
 				}
 			} else {
-				pagParams := []string{}
+				pagParams := url.Values{}
 				if v, _ := cmd.Flags().GetInt("limit"); v > 0 {
-					pagParams = append(pagParams, fmt.Sprintf("limit=%d", v))
+					pagParams.Set("limit", strconv.Itoa(v))
 				}
 				if v, _ := cmd.Flags().GetInt("offset"); v > 0 {
-					pagParams = append(pagParams, fmt.Sprintf("offset=%d", v))
+					pagParams.Set("offset", strconv.Itoa(v))
 				}
-				if len(pagParams) > 0 {
-					sep := "?"
-					if strings.Contains(path, "?") {
-						sep = "&"
-					}
-					path += sep + strings.Join(pagParams, "&")
-				}
+				path = appendQueryParams(path, pagParams)
 				var fetchErr error
 				body, _, fetchErr = c.Get(path)
 				if fetchErr != nil {

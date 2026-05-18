@@ -52,7 +52,7 @@ Verify the checksum against `sha256sums.txt`, extract the archive, and move the 
 Export your API key:
 
 ```bash
-export CHRONARY_API_KEY=chr_sk_live_...
+export CHRONARY_API_KEY=chr_sk_...
 ```
 
 Or sign in interactively:

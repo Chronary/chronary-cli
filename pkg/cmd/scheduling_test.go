@@ -41,7 +41,6 @@ func TestSchedulingCreateCommand(t *testing.T) {
 			"participant_agent_ids": ["agt_a", "agt_b"],
 			"calendar_id": "cal_team",
 			"status": "pending",
-			"is_test": false,
 			"expires_at": null,
 			"resolved_slot": null,
 			"created_event_id": null,
@@ -63,7 +62,7 @@ func TestSchedulingCreateCommand(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"scheduling", "create", fileArg,
-		"--api-key", "chr_sk_live_test",
+		"--api-key", "chr_sk_test",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
@@ -83,7 +82,7 @@ func TestSchedulingListCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"scheduling", "list", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"scheduling", "list", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -95,7 +94,7 @@ func TestSchedulingGetCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"scheduling", "get", "spr_1", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"scheduling", "get", "spr_1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -119,7 +118,7 @@ func TestSchedulingRespondCommand(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"scheduling", "respond", "spr_1", fileArg,
-		"--api-key", "chr_sk_live_test",
+		"--api-key", "chr_sk_test",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
@@ -144,7 +143,7 @@ func TestSchedulingResolveCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"scheduling", "resolve", "spr_1", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"scheduling", "resolve", "spr_1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -159,7 +158,6 @@ func TestProposalSnakeCaseUnmarshal(t *testing.T) {
 		"participant_agent_ids": ["agt_a"],
 		"calendar_id": "cal_team",
 		"status": "confirmed",
-		"is_test": true,
 		"created_event_id": "evt_x",
 		"created_at": "2026-04-16T12:00:00Z",
 		"updated_at": "2026-04-16T12:00:00Z",
@@ -177,7 +175,6 @@ func TestProposalSnakeCaseUnmarshal(t *testing.T) {
 	assert.Equal(t, "agt_org", p.OrganizerAgentID)
 	assert.Equal(t, []string{"agt_a"}, p.ParticipantAgentIDs)
 	assert.Equal(t, "cal_team", p.CalendarID)
-	assert.True(t, p.IsTest)
 	require.NotNil(t, p.CreatedEventID)
 	assert.Equal(t, "evt_x", *p.CreatedEventID)
 	require.Len(t, p.Slots, 1)
@@ -198,6 +195,6 @@ func TestSchedulingCancelCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"scheduling", "cancel", "spr_1", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"scheduling", "cancel", "spr_1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }

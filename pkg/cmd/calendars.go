@@ -3,11 +3,12 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
+	"net/url"
+	"strconv"
 
-	"github.com/charmbracelet/huh"
 	"github.com/Chronary/chronary-cli/pkg/client"
 	"github.com/Chronary/chronary-cli/pkg/output"
+	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
 
@@ -240,16 +241,14 @@ func newCalendarsListCmd() *cobra.Command {
 					return fmt.Errorf("building response: %w", err)
 				}
 			} else {
-				params := []string{}
+				params := url.Values{}
 				if v, _ := cmd.Flags().GetInt("limit"); v > 0 {
-					params = append(params, fmt.Sprintf("limit=%d", v))
+					params.Set("limit", strconv.Itoa(v))
 				}
 				if v, _ := cmd.Flags().GetInt("offset"); v > 0 {
-					params = append(params, fmt.Sprintf("offset=%d", v))
+					params.Set("offset", strconv.Itoa(v))
 				}
-				if len(params) > 0 {
-					path += "?" + strings.Join(params, "&")
-				}
+				path = appendQueryParams(path, params)
 				var fetchErr error
 				body, _, fetchErr = c.Get(path)
 				if fetchErr != nil {

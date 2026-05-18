@@ -3,7 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
+	"net/url"
 
 	"github.com/Chronary/chronary-cli/pkg/client"
 	"github.com/Chronary/chronary-cli/pkg/output"
@@ -33,21 +33,21 @@ func availabilityFlags(cmd *cobra.Command) {
 	cmd.MarkFlagRequired("end")
 }
 
-func buildAvailParams(cmd *cobra.Command) string {
-	params := []string{}
+func buildAvailParams(cmd *cobra.Command) url.Values {
+	params := url.Values{}
 	if v, _ := cmd.Flags().GetString("start"); v != "" {
-		params = append(params, "start="+v)
+		params.Set("start", v)
 	}
 	if v, _ := cmd.Flags().GetString("end"); v != "" {
-		params = append(params, "end="+v)
+		params.Set("end", v)
 	}
 	if v, _ := cmd.Flags().GetString("slot-duration"); v != "" {
-		params = append(params, "slot_duration="+v)
+		params.Set("slot_duration", v)
 	}
 	if v, _ := cmd.Flags().GetBool("include-busy"); v {
-		params = append(params, "include_busy=true")
+		params.Set("include_busy", "true")
 	}
-	return strings.Join(params, "&")
+	return params
 }
 
 func printAvailability(cmd *cobra.Command, body []byte) error {
@@ -112,7 +112,8 @@ func newAvailAgentCmd() *cobra.Command {
 				return err
 			}
 
-			path := fmt.Sprintf("/v1/agents/%s/availability?%s", args[0], buildAvailParams(cmd))
+			path := fmt.Sprintf("/v1/agents/%s/availability", args[0])
+			path = appendQueryParams(path, buildAvailParams(cmd))
 			body, _, err := c.Get(path)
 			if err != nil {
 				return formatError(err)
@@ -140,7 +141,8 @@ func newAvailCalendarCmd() *cobra.Command {
 				return err
 			}
 
-			path := fmt.Sprintf("/v1/calendars/%s/availability?%s", args[0], buildAvailParams(cmd))
+			path := fmt.Sprintf("/v1/calendars/%s/availability", args[0])
+			path = appendQueryParams(path, buildAvailParams(cmd))
 			body, _, err := c.Get(path)
 			if err != nil {
 				return formatError(err)
@@ -173,13 +175,14 @@ func newAvailCrossCmd() *cobra.Command {
 			}
 
 			params := buildAvailParams(cmd)
-			params += "&agents=" + agents
+			params.Set("agents", agents)
 
 			if v, _ := cmd.Flags().GetString("calendars"); v != "" {
-				params += "&calendars=" + v
+				params.Set("calendars", v)
 			}
 
-			path := "/v1/availability?" + params
+			path := "/v1/availability"
+			path = appendQueryParams(path, params)
 			body, _, err := c.Get(path)
 			if err != nil {
 				return formatError(err)

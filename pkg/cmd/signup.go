@@ -15,14 +15,13 @@ func newAuthSignupCmd() *cobra.Command {
 		Long: `Send the verification-code email and create a new org in one call.
 
 The API returns:
-  - On a brand-new email: org_id, agent_id, a restricted live api_key, and a
-    fully-functional test_api_key. The live key is restricted to the verify
-    endpoint until you run ` + "`chronary auth verify`" + `.
+  - On a brand-new email: org_id, agent_id, and a restricted api_key. The key
+    is restricted to the verify endpoint until you run ` + "`chronary auth verify`" + `.
   - On an email that already has an org: only an opaque message (so signup
     cannot be used to enumerate existing accounts).
 
-This command does NOT save credentials to a profile — copy the keys it prints,
-or pipe them into ` + "`chronary auth login --profile <name>`" + ` yourself.`,
+This command does NOT save credentials to a profile — copy the key it prints,
+or pipe it into ` + "`chronary auth login --profile <name>`" + ` yourself.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			email, _ := cmd.Flags().GetString("email")
 			agentName, _ := cmd.Flags().GetString("agent-name")
@@ -55,11 +54,10 @@ or pipe them into ` + "`chronary auth login --profile <name>`" + ` yourself.`,
 			}
 
 			var resp struct {
-				OrgID      string `json:"org_id,omitempty"`
-				AgentID    string `json:"agent_id,omitempty"`
-				APIKey     string `json:"api_key,omitempty"`
-				TestAPIKey string `json:"test_api_key,omitempty"`
-				Message    string `json:"message"`
+				OrgID   string `json:"org_id,omitempty"`
+				AgentID string `json:"agent_id,omitempty"`
+				APIKey  string `json:"api_key,omitempty"`
+				Message string `json:"message"`
 			}
 			if err := json.Unmarshal(body, &resp); err != nil {
 				return fmt.Errorf("parsing response: %w", err)
@@ -76,10 +74,9 @@ or pipe them into ` + "`chronary auth login --profile <name>`" + ` yourself.`,
 			}
 
 			fmt.Printf("%s\n\n", resp.Message)
-			fmt.Printf("Org ID:        %s\n", resp.OrgID)
-			fmt.Printf("Agent ID:      %s\n", resp.AgentID)
-			fmt.Printf("Live API key:  %s   (restricted — run `chronary auth verify` first)\n", resp.APIKey)
-			fmt.Printf("Test API key:  %s   (works immediately)\n", resp.TestAPIKey)
+			fmt.Printf("Org ID:    %s\n", resp.OrgID)
+			fmt.Printf("Agent ID:  %s\n", resp.AgentID)
+			fmt.Printf("API key:   %s   (restricted — run `chronary auth verify` first)\n", resp.APIKey)
 			fmt.Println()
 			fmt.Println("Next: check your email for the OTP, then run:")
 			fmt.Printf("  chronary auth verify --otp <code> --api-key %s\n", resp.APIKey)

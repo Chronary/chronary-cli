@@ -33,7 +33,7 @@ func TestFeedbackSubmit(t *testing.T) {
 		"feedback", "submit",
 		"--type", "bug",
 		"--message", "Ten characters at least here for the message.",
-		"--api-key", "chr_sk_live_test",
+		"--api-key", "chr_sk_test",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
@@ -46,7 +46,7 @@ func TestFeedbackSubmitRejectsInvalidType(t *testing.T) {
 		"feedback", "submit",
 		"--type", "invalid",
 		"--message", "Ten characters at least here for the message.",
-		"--api-key", "chr_sk_live_test",
+		"--api-key", "chr_sk_test",
 	})
 	err := rootCmd.Execute()
 	assert.ErrorContains(t, err, "invalid --type")
@@ -58,7 +58,7 @@ func TestFeedbackSubmitRejectsShortMessage(t *testing.T) {
 		"feedback", "submit",
 		"--type", "bug",
 		"--message", "short",
-		"--api-key", "chr_sk_live_test",
+		"--api-key", "chr_sk_test",
 	})
 	err := rootCmd.Execute()
 	assert.ErrorContains(t, err, "at least 10 characters")

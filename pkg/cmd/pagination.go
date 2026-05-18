@@ -3,6 +3,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/Chronary/chronary-cli/pkg/client"
@@ -24,11 +26,10 @@ func fetchAllPages(c *client.Client, basePath string, limit int) ([]json.RawMess
 	total := 0
 
 	for {
-		sep := "?"
-		if strings.Contains(basePath, "?") {
-			sep = "&"
-		}
-		path := fmt.Sprintf("%s%slimit=%d&offset=%d", basePath, sep, limit, offset)
+		params := url.Values{}
+		params.Set("limit", strconv.Itoa(limit))
+		params.Set("offset", strconv.Itoa(offset))
+		path := appendQueryParams(basePath, params)
 
 		body, _, err := c.Get(path)
 		if err != nil {
@@ -61,4 +62,15 @@ func rewrapList(items []json.RawMessage, total int) ([]byte, error) {
 		"offset": 0,
 	}
 	return json.Marshal(wrapped)
+}
+
+func appendQueryParams(path string, params url.Values) string {
+	if len(params) == 0 {
+		return path
+	}
+	sep := "?"
+	if strings.Contains(path, "?") {
+		sep = "&"
+	}
+	return path + sep + params.Encode()
 }

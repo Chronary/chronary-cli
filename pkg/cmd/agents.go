@@ -3,11 +3,12 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
+	"net/url"
+	"strconv"
 
-	"github.com/charmbracelet/huh"
 	"github.com/Chronary/chronary-cli/pkg/client"
 	"github.com/Chronary/chronary-cli/pkg/output"
+	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
 
@@ -42,21 +43,19 @@ func newAgentsListCmd() *cobra.Command {
 
 			// Build query params (excluding limit/offset when --all is used)
 			all, _ := cmd.Flags().GetBool("all")
-			params := []string{}
+			params := url.Values{}
 			if v, _ := cmd.Flags().GetString("type"); v != "" {
-				params = append(params, "type="+v)
+				params.Set("type", v)
 			}
 			if v, _ := cmd.Flags().GetString("status"); v != "" {
-				params = append(params, "status="+v)
+				params.Set("status", v)
 			}
 
 			path := "/v1/agents"
 
 			var body []byte
 			if all {
-				if len(params) > 0 {
-					path += "?" + strings.Join(params, "&")
-				}
+				path = appendQueryParams(path, params)
 				items, total, err := fetchAllPages(c, path, 200)
 				if err != nil {
 					return formatError(err)
@@ -67,14 +66,12 @@ func newAgentsListCmd() *cobra.Command {
 				}
 			} else {
 				if v, _ := cmd.Flags().GetInt("limit"); v > 0 {
-					params = append(params, fmt.Sprintf("limit=%d", v))
+					params.Set("limit", strconv.Itoa(v))
 				}
 				if v, _ := cmd.Flags().GetInt("offset"); v > 0 {
-					params = append(params, fmt.Sprintf("offset=%d", v))
+					params.Set("offset", strconv.Itoa(v))
 				}
-				if len(params) > 0 {
-					path += "?" + strings.Join(params, "&")
-				}
+				path = appendQueryParams(path, params)
 				var fetchErr error
 				body, _, fetchErr = c.Get(path)
 				if fetchErr != nil {
@@ -131,7 +128,7 @@ func newAgentsListCmd() *cobra.Command {
 func newAgentsCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create [@file]",
-		Short: "Create a new agent",
+		Short: "Register your agent with Chronary",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := clientFromCmd(cmd)
@@ -181,7 +178,7 @@ func newAgentsCreateCmd() *cobra.Command {
 			}
 
 			nc := noColor(cmd)
-			fmt.Printf("Created agent %s (%s)\n", agent.ID, output.ColorStatus(agent.Status, nc))
+			fmt.Printf("Registered agent %s (%s)\n", agent.ID, output.ColorStatus(agent.Status, nc))
 			return nil
 		},
 	}

@@ -29,11 +29,10 @@ func TestAuthSignupNewOrg(t *testing.T) {
 
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"org_id":       "org_abc123",
-			"agent_id":     "agt_abc123",
-			"api_key":      "chr_sk_live_restricted_abc",
-			"test_api_key": "chr_sk_test_abc",
-			"message":      "Verification code sent to email",
+			"org_id":   "org_abc123",
+			"agent_id": "agt_abc123",
+			"api_key":  "chr_sk_restricted_abc",
+			"message":  "Verification code sent to email",
 		})
 	}))
 	defer srv.Close()
@@ -89,7 +88,7 @@ func TestAuthVerifySuccess(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v1/agent/verify", r.URL.Path)
 		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "Bearer chr_sk_live_restricted_abc", r.Header.Get("Authorization"))
+		assert.Equal(t, "Bearer chr_sk_restricted_abc", r.Header.Get("Authorization"))
 
 		raw, err := io.ReadAll(r.Body)
 		require.NoError(t, err)
@@ -109,7 +108,7 @@ func TestAuthVerifySuccess(t *testing.T) {
 	rootCmd.SetArgs([]string{
 		"auth", "verify",
 		"--otp", "123456",
-		"--api-key", "chr_sk_live_restricted_abc",
+		"--api-key", "chr_sk_restricted_abc",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
@@ -121,7 +120,7 @@ func TestAuthVerifyRejectsShortOTP(t *testing.T) {
 	rootCmd.SetArgs([]string{
 		"auth", "verify",
 		"--otp", "123",
-		"--api-key", "chr_sk_live_restricted_abc",
+		"--api-key", "chr_sk_restricted_abc",
 	})
 	err := rootCmd.Execute()
 	assert.ErrorContains(t, err, "6 digits")

@@ -40,13 +40,13 @@ const plansCatalogFixture = `{
       "recommended": true
     },
     {
-      "id": "enterprise",
-      "name": "Enterprise",
-      "tagline": "Custom limits, dedicated SLA",
+      "id": "custom",
+      "name": "Custom",
+      "tagline": "For multi-agent platforms and enterprise",
       "price": null,
       "currency": null,
       "limits": null,
-      "display_features": ["Everything in Scale"],
+      "display_features": ["Custom volume limits"],
       "recommended": false,
       "custom_pricing": true,
       "contact_url": "https://chronary.ai/contact"

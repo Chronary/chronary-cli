@@ -11,9 +11,10 @@ func TestMaskKey(t *testing.T) {
 		key  string
 		want string
 	}{
+		{"chr_sk_abcdef1234567890", "chr_sk_abcd..."},
+		{"chr_sk_xyz1234567890", "chr_sk_xyz1..."},
 		{"chr_sk_live_abcdef1234567890", "chr_sk_live_abcd..."},
-		{"chr_sk_test_xyz1234567890", "chr_sk_test_xyz1..."},
-		{"chr_sk_live_ab", "chr_sk_live_ab"},
+		{"chr_sk_ab", "chr_sk_ab"},
 		{"short", "short"},
 		{"longnonprefixedkey123", "longnonp..."},
 	}

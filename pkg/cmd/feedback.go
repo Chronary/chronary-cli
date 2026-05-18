@@ -27,8 +27,7 @@ func newFeedbackSubmitCmd() *cobra.Command {
 		Short: "Submit structured feedback",
 		Long: `Submit structured feedback about the API, SDK, or agent experience.
 
-Rate-limited to 25 submissions per day per organization (UTC day) for live-mode
-keys. Test-mode keys (chr_sk_test_*) bypass the cap entirely.`,
+Rate-limited to 25 submissions per day per organization (UTC day).`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := clientFromCmd(cmd)
 			if err != nil {

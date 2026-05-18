@@ -3,6 +3,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/Chronary/chronary-cli/pkg/client"
@@ -100,22 +102,20 @@ func newSchedulingListCmd() *cobra.Command {
 					return fmt.Errorf("building response: %w", err)
 				}
 			} else {
-				params := []string{}
+				params := url.Values{}
 				if v, _ := cmd.Flags().GetString("status"); v != "" {
-					params = append(params, "status="+v)
+					params.Set("status", v)
 				}
 				if v, _ := cmd.Flags().GetString("organizer"); v != "" {
-					params = append(params, "organizer_agent_id="+v)
+					params.Set("organizer_agent_id", v)
 				}
 				if v, _ := cmd.Flags().GetInt("limit"); v > 0 {
-					params = append(params, fmt.Sprintf("limit=%d", v))
+					params.Set("limit", strconv.Itoa(v))
 				}
 				if v, _ := cmd.Flags().GetInt("offset"); v > 0 {
-					params = append(params, fmt.Sprintf("offset=%d", v))
+					params.Set("offset", strconv.Itoa(v))
 				}
-				if len(params) > 0 {
-					path += "?" + strings.Join(params, "&")
-				}
+				path = appendQueryParams(path, params)
 				var fetchErr error
 				body, _, fetchErr = c.Get(path)
 				if fetchErr != nil {

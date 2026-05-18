@@ -12,10 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestScopedKey(id, mode, prefix, agentID string, label *string) client.ScopedAPIKey {
+func newTestScopedKey(id, prefix, agentID string, label *string) client.ScopedAPIKey {
 	return client.ScopedAPIKey{
 		ID:        id,
-		Mode:      mode,
 		KeyPrefix: prefix,
 		AgentID:   agentID,
 		Label:     label,
@@ -26,8 +25,8 @@ func newTestScopedKey(id, mode, prefix, agentID string, label *string) client.Sc
 func TestKeysListCommand(t *testing.T) {
 	label := "Sales sandbox"
 	keys := []client.ScopedAPIKey{
-		newTestScopedKey("key_1", "test", "chr_ak_test_ABCD1234", "agt_1", &label),
-		newTestScopedKey("key_2", "live", "chr_ak_live_WXYZ9876", "agt_2", nil),
+		newTestScopedKey("key_1", "chr_ak_ABCD1234", "agt_1", &label),
+		newTestScopedKey("key_2", "chr_ak_WXYZ9876", "agt_2", nil),
 	}
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -38,15 +37,15 @@ func TestKeysListCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"keys", "list", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"keys", "list", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
 func TestKeysCreateCommand(t *testing.T) {
 	label := "Customer A"
 	created := client.CreatedScopedAPIKey{
-		ScopedAPIKey: newTestScopedKey("key_new", "test", "chr_ak_test_ABCD1234", "agt_123", &label),
-		Key:          "chr_ak_test_SECRET123",
+		ScopedAPIKey: newTestScopedKey("key_new", "chr_ak_ABCD1234", "agt_123", &label),
+		Key:          "chr_ak_SECRET123",
 	}
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +55,6 @@ func TestKeysCreateCommand(t *testing.T) {
 		var body map[string]any
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 		assert.Equal(t, "agt_123", body["agent_id"])
-		assert.Equal(t, "test", body["mode"])
 		assert.Equal(t, "Customer A", body["label"])
 
 		w.WriteHeader(http.StatusCreated)
@@ -67,10 +65,9 @@ func TestKeysCreateCommand(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"keys", "create",
-		"--api-key", "chr_sk_live_test",
+		"--api-key", "chr_sk_test",
 		"--base-url", srv.URL,
 		"--agent", "agt_123",
-		"--mode", "test",
 		"--label", "Customer A",
 		"--output", "json",
 	})
@@ -79,13 +76,12 @@ func TestKeysCreateCommand(t *testing.T) {
 
 func TestKeysCreateCommandWithFile(t *testing.T) {
 	created := client.CreatedScopedAPIKey{
-		ScopedAPIKey: newTestScopedKey("key_file", "live", "chr_ak_live_ABCD1234", "agt_456", nil),
-		Key:          "chr_ak_live_SECRET123",
+		ScopedAPIKey: newTestScopedKey("key_file", "chr_ak_ABCD1234", "agt_456", nil),
+		Key:          "chr_ak_SECRET123",
 	}
 
 	input := writeTempJSON(t, "key.json", map[string]any{
 		"agent_id": "agt_456",
-		"mode":     "live",
 	})
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -95,7 +91,6 @@ func TestKeysCreateCommandWithFile(t *testing.T) {
 		var body map[string]any
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 		assert.Equal(t, "agt_456", body["agent_id"])
-		assert.Equal(t, "live", body["mode"])
 
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(created)
@@ -105,7 +100,7 @@ func TestKeysCreateCommandWithFile(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"keys", "create", input,
-		"--api-key", "chr_sk_live_test",
+		"--api-key", "chr_sk_test",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
@@ -123,7 +118,7 @@ func TestKeysDeleteCommand(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"keys", "delete", "key_123",
-		"--api-key", "chr_sk_live_test",
+		"--api-key", "chr_sk_test",
 		"--base-url", srv.URL,
 		"--force",
 	})
@@ -134,8 +129,7 @@ func TestKeysCreateRequiresAgentWithoutFile(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"keys", "create",
-		"--api-key", "chr_sk_live_test",
-		"--mode", "test",
+		"--api-key", "chr_sk_test",
 	})
 	assert.Error(t, rootCmd.Execute())
 }

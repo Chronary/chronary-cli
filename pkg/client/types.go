@@ -118,24 +118,40 @@ type UsageCounter struct {
 	Limit int `json:"limit"`
 }
 
+// HoldsUsage tracks temporal-hold lifecycle counters for the current period.
+// Informational — not gated by any plan limit. Funnel identity:
+// `created = confirmed + expired + active` (active is derived).
+type HoldsUsage struct {
+	Created   int `json:"created"`
+	Confirmed int `json:"confirmed"`
+	Expired   int `json:"expired"`
+}
+
+// CrossCalendarQueriesUsage counts availability requests touching >1 calendar.
+// Informational — gated separately by the cross_calendar_availability capability.
+type CrossCalendarQueriesUsage struct {
+	Used int `json:"used"`
+}
+
 // UsageResponse is the shape returned by GET /v1/usage.
 type UsageResponse struct {
-	PeriodStart         string       `json:"period_start"`
-	PeriodEnd           string       `json:"period_end"`
-	Plan                string       `json:"plan"`
-	Agents              UsageCounter `json:"agents"`
-	Calendars           UsageCounter `json:"calendars"`
-	Events              UsageCounter `json:"events"`
-	APICalls            UsageCounter `json:"api_calls"`
-	Webhooks            UsageCounter `json:"webhooks"`
-	AvailabilityQueries UsageCounter `json:"availability_queries"`
-	ICalSubscriptions   UsageCounter `json:"ical_subscriptions"`
+	PeriodStart            string                    `json:"period_start"`
+	PeriodEnd              string                    `json:"period_end"`
+	Plan                   string                    `json:"plan"`
+	Agents                 UsageCounter              `json:"agents"`
+	Calendars              UsageCounter              `json:"calendars"`
+	Events                 UsageCounter              `json:"events"`
+	APICalls               UsageCounter              `json:"api_calls"`
+	Webhooks               UsageCounter              `json:"webhooks"`
+	AvailabilityQueries    UsageCounter              `json:"availability_queries"`
+	ICalSubscriptions      UsageCounter              `json:"ical_subscriptions"`
+	Holds                  HoldsUsage                `json:"holds"`
+	CrossCalendarQueries   CrossCalendarQueriesUsage `json:"cross_calendar_queries"`
 }
 
 // ScopedAPIKey represents an agent-scoped API key.
 type ScopedAPIKey struct {
 	ID        string    `json:"id"`
-	Mode      string    `json:"mode"`
 	KeyPrefix string    `json:"key_prefix"`
 	AgentID   string    `json:"agent_id"`
 	Label     *string   `json:"label"`
@@ -225,7 +241,6 @@ type Proposal struct {
 	ParticipantAgentIDs []string           `json:"participant_agent_ids"`
 	CalendarID          string             `json:"calendar_id"`
 	Status              string             `json:"status"`
-	IsTest              bool               `json:"is_test"`
 	ExpiresAt           *time.Time         `json:"expires_at,omitempty"`
 	ResolvedSlot        *ProposalSlot      `json:"resolved_slot,omitempty"`
 	CreatedEventID      *string            `json:"created_event_id,omitempty"`
@@ -278,4 +293,30 @@ type Plan struct {
 // PlansListResponse is the shape returned by GET /v1/plans.
 type PlansListResponse struct {
 	Plans []Plan `json:"plans"`
+}
+
+// AuditLogEntry is a single audit-log record.
+type AuditLogEntry struct {
+	ID             string  `json:"id"`
+	Action         string  `json:"action"`
+	ActorKeyPrefix *string `json:"actor_key_prefix"`
+	AgentID        *string `json:"agent_id"`
+	Resource       *string `json:"resource"`
+	IP             *string `json:"ip"`
+	Status         int     `json:"status"`
+	Method         string  `json:"method"`
+	Path           string  `json:"path"`
+	DurationMS     int     `json:"duration_ms"`
+	RequestID      *string `json:"request_id"`
+	CreatedAt      string  `json:"created_at"`
+}
+
+// AuditLogResponse is the shape returned by GET /v1/audit-log.
+type AuditLogResponse struct {
+	Data       []AuditLogEntry `json:"data"`
+	Pagination struct {
+		NextCursor *string `json:"next_cursor"`
+	} `json:"pagination"`
+	RetentionDays *int `json:"retention_days"`
+	RangeClamped  bool `json:"range_clamped"`
 }

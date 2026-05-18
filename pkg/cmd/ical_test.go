@@ -36,13 +36,13 @@ func TestICalListCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"ical", "list", "--agent", "agt_1", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"ical", "list", "--agent", "agt_1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
 func TestICalListRequiresAgent(t *testing.T) {
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"ical", "list", "--api-key", "chr_sk_live_test"})
+	rootCmd.SetArgs([]string{"ical", "list", "--api-key", "chr_sk_test"})
 	assert.Error(t, rootCmd.Execute())
 }
 
@@ -66,7 +66,7 @@ func TestICalCreateCommand(t *testing.T) {
 		"--calendar", "cal_1",
 		"--url", "https://example.com/feed.ics",
 		"--label", "My Feed",
-		"--api-key", "chr_sk_live_test",
+		"--api-key", "chr_sk_test",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
@@ -81,7 +81,7 @@ func TestICalGetCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"ical", "get", "ics_1", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"ical", "get", "ics_1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -97,7 +97,7 @@ func TestICalUpdateCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"ical", "update", "ics_1", "--label", "New Label", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"ical", "update", "ics_1", "--label", "New Label", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -110,7 +110,7 @@ func TestICalDeleteCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"ical", "delete", "ics_1", "--force", "--api-key", "chr_sk_live_test", "--base-url", srv.URL})
+	rootCmd.SetArgs([]string{"ical", "delete", "ics_1", "--force", "--api-key", "chr_sk_test", "--base-url", srv.URL})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -124,6 +124,6 @@ func TestICalSyncCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"ical", "sync", "ics_1", "--api-key", "chr_sk_live_test", "--base-url", srv.URL})
+	rootCmd.SetArgs([]string{"ical", "sync", "ics_1", "--api-key", "chr_sk_test", "--base-url", srv.URL})
 	require.NoError(t, rootCmd.Execute())
 }

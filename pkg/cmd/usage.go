@@ -56,6 +56,13 @@ func newUsageCmd() *cobra.Command {
 				Rows:    rows,
 			}, nc)
 
+			// Informational counters (no plan limit, never gated on these). Funnel:
+			// active = created - confirmed - expired
+			active := usage.Holds.Created - usage.Holds.Confirmed - usage.Holds.Expired
+			fmt.Printf("\nHolds:                 created=%d  confirmed=%d  expired=%d  active=%d\n",
+				usage.Holds.Created, usage.Holds.Confirmed, usage.Holds.Expired, active)
+			fmt.Printf("Cross-cal availability: %d requests\n", usage.CrossCalendarQueries.Used)
+
 			return nil
 		},
 	}

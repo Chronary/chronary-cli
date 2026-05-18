@@ -35,7 +35,7 @@ func TestCalendarsListCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"calendars", "list", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"calendars", "list", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -47,7 +47,7 @@ func TestCalendarsListByAgent(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"calendars", "list", "--agent", "agt_1", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"calendars", "list", "--agent", "agt_1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -64,7 +64,7 @@ func TestCalendarsCreateCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"calendars", "create", "--name", "Work", "--timezone", "America/New_York", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"calendars", "create", "--name", "Work", "--timezone", "America/New_York", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -76,7 +76,7 @@ func TestCalendarsGetCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"calendars", "get", "cal_1", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"calendars", "get", "cal_1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -88,7 +88,7 @@ func TestCalendarsUpdateCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"calendars", "update", "cal_1", "--name", "Renamed", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"calendars", "update", "cal_1", "--name", "Renamed", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -100,7 +100,7 @@ func TestCalendarsDeleteCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"calendars", "delete", "cal_1", "--force", "--api-key", "chr_sk_live_test", "--base-url", srv.URL})
+	rootCmd.SetArgs([]string{"calendars", "delete", "cal_1", "--force", "--api-key", "chr_sk_test", "--base-url", srv.URL})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -119,7 +119,7 @@ func TestCalendarsContextCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"calendars", "context", "cal_1", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"calendars", "context", "cal_1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -140,7 +140,7 @@ func TestCalendarsAvailabilityRulesGetCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"calendars", "availability-rules", "get", "cal_1", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"calendars", "availability-rules", "get", "cal_1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -168,7 +168,7 @@ func TestCalendarsAvailabilityRulesSetCommand(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"calendars", "availability-rules", "set", "cal_1", fileArg,
-		"--api-key", "chr_sk_live_test",
+		"--api-key", "chr_sk_test",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
@@ -184,6 +184,6 @@ func TestCalendarsAvailabilityRulesDeleteCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"calendars", "availability-rules", "delete", "cal_1", "--force", "--api-key", "chr_sk_live_test", "--base-url", srv.URL})
+	rootCmd.SetArgs([]string{"calendars", "availability-rules", "delete", "cal_1", "--force", "--api-key", "chr_sk_test", "--base-url", srv.URL})
 	require.NoError(t, rootCmd.Execute())
 }

@@ -14,7 +14,7 @@ func TestSaveAndLoad(t *testing.T) {
 	path := filepath.Join(dir, "config.json")
 
 	cfg := &Config{
-		APIKey:  "chr_sk_live_abc123",
+		APIKey:  "chr_sk_abc123",
 		BaseURL: "https://api.chronary.ai",
 	}
 
@@ -38,7 +38,7 @@ func TestSaveCreatesDirectory(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "nested", "dir")
 	path := filepath.Join(dir, "config.json")
 
-	err := SaveTo(path, &Config{APIKey: "chr_sk_test_xyz"})
+	err := SaveTo(path, &Config{APIKey: "chr_sk_xyz"})
 	require.NoError(t, err)
 
 	_, err = os.Stat(path)
@@ -49,24 +49,24 @@ func TestProfileManagement(t *testing.T) {
 	cfg := &Config{}
 
 	// Set a profile
-	cfg.SetProfile("prod", &Profile{APIKey: "chr_sk_live_abc", BaseURL: ""})
+	cfg.SetProfile("prod", &Profile{APIKey: "chr_sk_abc", BaseURL: ""})
 	assert.Equal(t, "prod", cfg.ActiveProfile)
 	assert.NotNil(t, cfg.Profiles["prod"])
-	assert.Equal(t, "chr_sk_live_abc", cfg.Profiles["prod"].APIKey)
+	assert.Equal(t, "chr_sk_abc", cfg.Profiles["prod"].APIKey)
 
 	// Add another profile
-	cfg.SetProfile("staging", &Profile{APIKey: "chr_sk_test_xyz", BaseURL: "https://staging.api.chronary.ai"})
+	cfg.SetProfile("staging", &Profile{APIKey: "chr_sk_xyz", BaseURL: "https://staging.api.chronary.ai"})
 	assert.Equal(t, "staging", cfg.ActiveProfile)
 	assert.Len(t, cfg.Profiles, 2)
 
 	// ActiveOrDefault returns active profile
 	p := cfg.ActiveOrDefault()
-	assert.Equal(t, "chr_sk_test_xyz", p.APIKey)
+	assert.Equal(t, "chr_sk_xyz", p.APIKey)
 
 	// Switch back
 	cfg.ActiveProfile = "prod"
 	p = cfg.ActiveOrDefault()
-	assert.Equal(t, "chr_sk_live_abc", p.APIKey)
+	assert.Equal(t, "chr_sk_abc", p.APIKey)
 
 	// Remove a profile
 	assert.True(t, cfg.RemoveProfile("staging"))
@@ -76,7 +76,7 @@ func TestProfileManagement(t *testing.T) {
 
 func TestMigrateLegacyConfig(t *testing.T) {
 	cfg := &Config{
-		APIKey:  "chr_sk_live_old",
+		APIKey:  "chr_sk_old",
 		BaseURL: "https://custom.api.chronary.ai",
 	}
 
@@ -84,7 +84,7 @@ func TestMigrateLegacyConfig(t *testing.T) {
 
 	assert.Equal(t, "default", cfg.ActiveProfile)
 	assert.NotNil(t, cfg.Profiles["default"])
-	assert.Equal(t, "chr_sk_live_old", cfg.Profiles["default"].APIKey)
+	assert.Equal(t, "chr_sk_old", cfg.Profiles["default"].APIKey)
 	assert.Equal(t, "https://custom.api.chronary.ai", cfg.Profiles["default"].BaseURL)
 	assert.Empty(t, cfg.APIKey, "legacy fields should be cleared")
 	assert.Empty(t, cfg.BaseURL)
@@ -92,19 +92,19 @@ func TestMigrateLegacyConfig(t *testing.T) {
 
 func TestMigrateSkipsIfProfilesExist(t *testing.T) {
 	cfg := &Config{
-		APIKey:   "chr_sk_live_old",
-		Profiles: map[string]*Profile{"existing": {APIKey: "chr_sk_live_new"}},
+		APIKey:   "chr_sk_old",
+		Profiles: map[string]*Profile{"existing": {APIKey: "chr_sk_new"}},
 	}
 	cfg.Migrate()
-	assert.Equal(t, "chr_sk_live_new", cfg.Profiles["existing"].APIKey)
+	assert.Equal(t, "chr_sk_new", cfg.Profiles["existing"].APIKey)
 	assert.Len(t, cfg.Profiles, 1) // didn't add a "default"
 }
 
 func TestActiveOrDefaultFallback(t *testing.T) {
 	// Legacy config without profiles should fallback
-	cfg := &Config{APIKey: "chr_sk_live_legacy"}
+	cfg := &Config{APIKey: "chr_sk_legacy"}
 	p := cfg.ActiveOrDefault()
-	assert.Equal(t, "chr_sk_live_legacy", p.APIKey)
+	assert.Equal(t, "chr_sk_legacy", p.APIKey)
 }
 
 func TestProfileRoundTrip(t *testing.T) {
@@ -112,8 +112,8 @@ func TestProfileRoundTrip(t *testing.T) {
 	path := filepath.Join(dir, "config.json")
 
 	cfg := &Config{}
-	cfg.SetProfile("dev", &Profile{APIKey: "chr_sk_test_dev"})
-	cfg.SetProfile("prod", &Profile{APIKey: "chr_sk_live_prod"})
+	cfg.SetProfile("dev", &Profile{APIKey: "chr_sk_dev"})
+	cfg.SetProfile("prod", &Profile{APIKey: "chr_sk_prod"})
 	cfg.ActiveProfile = "dev"
 
 	err := SaveTo(path, cfg)
@@ -123,12 +123,12 @@ func TestProfileRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "dev", loaded.ActiveProfile)
 	assert.Len(t, loaded.Profiles, 2)
-	assert.Equal(t, "chr_sk_test_dev", loaded.Profiles["dev"].APIKey)
+	assert.Equal(t, "chr_sk_dev", loaded.Profiles["dev"].APIKey)
 }
 
 func TestRemoveActiveProfile(t *testing.T) {
 	cfg := &Config{}
-	cfg.SetProfile("temp", &Profile{APIKey: "chr_sk_test_tmp"})
+	cfg.SetProfile("temp", &Profile{APIKey: "chr_sk_tmp"})
 	assert.Equal(t, "temp", cfg.ActiveProfile)
 
 	cfg.RemoveProfile("temp")
@@ -142,7 +142,7 @@ func TestSaveFilePermissions(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.json")
 
-	err := SaveTo(path, &Config{APIKey: "chr_sk_live_secret"})
+	err := SaveTo(path, &Config{APIKey: "chr_sk_secret"})
 	require.NoError(t, err)
 
 	info, err := os.Stat(path)

@@ -19,6 +19,7 @@ func newAuthCmd() *cobra.Command {
 	authCmd.AddCommand(newAuthLoginCmd())
 	authCmd.AddCommand(newAuthSignupCmd())
 	authCmd.AddCommand(newAuthVerifyCmd())
+	authCmd.AddCommand(newAuthWaitlistCmd())
 	authCmd.AddCommand(newAuthStatusCmd())
 	authCmd.AddCommand(newAuthListCmd())
 	authCmd.AddCommand(newAuthSwitchCmd())
@@ -36,11 +37,11 @@ func newAuthLoginCmd() *cobra.Command {
 
 			err := huh.NewInput().
 				Title("Enter your Chronary API key").
-				Description("Starts with chr_sk_live_ or chr_sk_test_").
-				Placeholder("chr_sk_live_...").
+				Description("Starts with chr_sk_").
+				Placeholder("chr_sk_...").
 				Validate(func(s string) error {
-					if !strings.HasPrefix(s, "chr_sk_live_") && !strings.HasPrefix(s, "chr_sk_test_") {
-						return fmt.Errorf("key must start with chr_sk_live_ or chr_sk_test_")
+					if !strings.HasPrefix(s, "chr_sk_") {
+						return fmt.Errorf("key must start with chr_sk_")
 					}
 					return nil
 				}).
@@ -90,12 +91,7 @@ func newAuthLoginCmd() *cobra.Command {
 				return fmt.Errorf("saving config: %w", err)
 			}
 
-			mode := "live"
-			if strings.HasPrefix(apiKey, "chr_sk_test_") {
-				mode = "test"
-			}
-
-			fmt.Printf("Authenticated (%s mode). Key saved to profile %q.\n", mode, profileName)
+			fmt.Printf("Authenticated. Key saved to profile %q.\n", profileName)
 			return nil
 		},
 	}
@@ -115,8 +111,6 @@ func newAuthStatusCmd() *cobra.Command {
 				return err
 			}
 
-			nc := noColor(cmd)
-
 			if c.APIKey == "" {
 				if printStructured(cmd, map[string]any{"authenticated": false}) {
 					return nil
@@ -127,23 +121,16 @@ func newAuthStatusCmd() *cobra.Command {
 
 			// Mask key: show prefix + first 4 chars after prefix
 			masked := maskKey(c.APIKey)
-			mode := "live"
-			if strings.HasPrefix(c.APIKey, "chr_sk_test_") {
-				mode = "test"
-			}
 
 			if printStructured(cmd, map[string]any{
 				"authenticated": true,
 				"key":           masked,
-				"mode":          mode,
 				"base_url":      c.BaseURL,
 			}) {
 				return nil
 			}
 
-			modeStr := output.ColorStatus(mode, nc)
 			fmt.Printf("Key:      %s\n", masked)
-			fmt.Printf("Mode:     %s\n", modeStr)
 			fmt.Printf("Base URL: %s\n", c.BaseURL)
 			return nil
 		},
@@ -185,20 +172,15 @@ func newAuthListCmd() *cobra.Command {
 				if name == cfg.ActiveProfile {
 					active = "*"
 				}
-				mode := "live"
-				if strings.HasPrefix(p.APIKey, "chr_sk_test_") {
-					mode = "test"
-				}
 				rows = append(rows, []string{
 					active,
 					name,
-					output.ColorStatus(mode, nc),
 					maskKey(p.APIKey),
 				})
 			}
 
 			output.RenderTable(output.TableDef{
-				Headers: []string{"", "Profile", "Mode", "Key"},
+				Headers: []string{"", "Profile", "Key"},
 				Rows:    rows,
 			}, nc)
 			return nil
@@ -261,8 +243,9 @@ func newAuthRemoveCmd() *cobra.Command {
 
 // maskKey shows the prefix and first 4 chars, hiding the rest.
 func maskKey(key string) string {
-	// chr_sk_live_xxxx... or chr_sk_test_xxxx...
-	prefixes := []string{"chr_sk_live_", "chr_sk_test_"}
+	// New keys: chr_sk_xxxx...
+	// Legacy keys: chr_sk_live_xxxx...
+	prefixes := []string{"chr_sk_live_", "chr_sk_"}
 	for _, p := range prefixes {
 		if strings.HasPrefix(key, p) {
 			rest := key[len(p):]

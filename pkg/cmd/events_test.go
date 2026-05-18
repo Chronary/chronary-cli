@@ -38,7 +38,7 @@ func TestEventsListByCalendar(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"events", "list", "--calendar", "cal_1", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"events", "list", "--calendar", "cal_1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -50,13 +50,13 @@ func TestEventsListByAgent(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"events", "list", "--agent", "agt_1", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"events", "list", "--agent", "agt_1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
 func TestEventsListRequiresScope(t *testing.T) {
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"events", "list", "--api-key", "chr_sk_live_test"})
+	rootCmd.SetArgs([]string{"events", "list", "--api-key", "chr_sk_test"})
 	assert.Error(t, rootCmd.Execute())
 }
 
@@ -79,7 +79,7 @@ func TestEventsCreateCommand(t *testing.T) {
 		"--title", "Standup",
 		"--start", "2026-04-12T09:00:00Z",
 		"--end", "2026-04-12T09:30:00Z",
-		"--api-key", "chr_sk_live_test",
+		"--api-key", "chr_sk_test",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
@@ -94,7 +94,7 @@ func TestEventsGetCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"events", "get", "evt_1", "--calendar", "cal_1", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"events", "get", "evt_1", "--calendar", "cal_1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -106,7 +106,7 @@ func TestEventsUpdateCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"events", "update", "evt_1", "--calendar", "cal_1", "--title", "Updated", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"events", "update", "evt_1", "--calendar", "cal_1", "--title", "Updated", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -119,7 +119,7 @@ func TestEventsDeleteCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"events", "delete", "evt_1", "--calendar", "cal_1", "--force", "--api-key", "chr_sk_live_test", "--base-url", srv.URL})
+	rootCmd.SetArgs([]string{"events", "delete", "evt_1", "--calendar", "cal_1", "--force", "--api-key", "chr_sk_test", "--base-url", srv.URL})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -146,7 +146,7 @@ func TestEventsCreateHoldCommand(t *testing.T) {
 		"--status", "hold",
 		"--hold-expires-at", "2099-01-01T10:05:00Z",
 		"--hold-priority", "10",
-		"--api-key", "chr_sk_live_test",
+		"--api-key", "chr_sk_test",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
@@ -162,7 +162,7 @@ func TestEventsConfirmCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"events", "confirm", "evt_hold1", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"events", "confirm", "evt_hold1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -175,6 +175,6 @@ func TestEventsReleaseCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"events", "release", "evt_hold1", "--api-key", "chr_sk_live_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"events", "release", "evt_hold1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }

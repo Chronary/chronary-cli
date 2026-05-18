@@ -6,9 +6,17 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
+
+// Version is the CLI version reported in the User-Agent header so the API
+// can attribute traffic to the CLI surface (vs. SDKs and raw REST). Set at
+// build time via -ldflags "-X github.com/Chronary/chronary-cli/pkg/client.Version=$VERSION".
+// Defaults to "dev" for unbuilt and local-test runs.
+var Version = "dev"
 
 // Client is the Chronary API HTTP client.
 type Client struct {
@@ -16,6 +24,21 @@ type Client struct {
 	APIKey     string
 	Debug      bool
 	HTTPClient *http.Client
+}
+
+var (
+	chronaryKeyPattern = regexp.MustCompile(`chr_(?:sk|ak)_(?:live_)?[A-Za-z0-9_-]+`)
+	jsonSecretPattern  = regexp.MustCompile(`"((?:api_)?key|secret|revocation_token|ical_token|ical_feed_url)"\s*:\s*"[^"]*"`)
+	icalURLPattern     = regexp.MustCompile(`https://[^"\s]+/ical/[^"\s]+\.ics`)
+	retrySleep         = time.Sleep
+)
+
+const maxGetRetries = 2
+
+func redactDebugBody(body []byte) string {
+	redacted := chronaryKeyPattern.ReplaceAllString(string(body), "[redacted_key]")
+	redacted = icalURLPattern.ReplaceAllString(redacted, "[redacted_ical_url]")
+	return jsonSecretPattern.ReplaceAllString(redacted, `"$1":"[redacted]"`)
 }
 
 // NewClient creates a new API client.
@@ -68,9 +91,55 @@ func (c *Client) doJSON(method, path string, body any) ([]byte, int, error) {
 func (c *Client) do(method, path string, body io.Reader) ([]byte, int, error) {
 	url := c.BaseURL + path
 
+	var bodyBytes []byte
+	if body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(body)
+		if err != nil {
+			return nil, 0, fmt.Errorf("reading request body: %w", err)
+		}
+	}
+
+	attempts := 1
+	if method == "GET" {
+		attempts += maxGetRetries
+	}
+
+	var lastStatus int
+	for attempt := 0; attempt < attempts; attempt++ {
+		var bodyReader io.Reader
+		if bodyBytes != nil {
+			bodyReader = bytes.NewReader(bodyBytes)
+		}
+
+		respBody, status, retryAfter, err := c.doOnce(method, url, bodyReader)
+		lastStatus = status
+		if err != nil {
+			if method == "GET" && attempt < attempts-1 {
+				retrySleep(retryDelay(attempt+1, ""))
+				continue
+			}
+			return nil, status, err
+		}
+
+		if isRetryableStatus(status) && method == "GET" && attempt < attempts-1 {
+			retrySleep(retryDelay(attempt+1, retryAfter))
+			continue
+		}
+		if status >= 200 && status < 300 {
+			return respBody, status, nil
+		}
+
+		return c.responseError(status, respBody)
+	}
+
+	return nil, lastStatus, fmt.Errorf("request failed after retries")
+}
+
+func (c *Client) doOnce(method, url string, body io.Reader) ([]byte, int, string, error) {
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
-		return nil, 0, fmt.Errorf("creating request: %w", err)
+		return nil, 0, "", fmt.Errorf("creating request: %w", err)
 	}
 
 	if body != nil {
@@ -79,7 +148,7 @@ func (c *Client) do(method, path string, body io.Reader) ([]byte, int, error) {
 	if c.APIKey != "" {
 		req.Header.Set("Authorization", "Bearer "+c.APIKey)
 	}
-	req.Header.Set("User-Agent", "chronary-cli")
+	req.Header.Set("User-Agent", "chronary-cli/"+Version)
 
 	if c.Debug {
 		fmt.Printf(">>> %s %s\n", method, url)
@@ -91,36 +160,66 @@ func (c *Client) do(method, path string, body io.Reader) ([]byte, int, error) {
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return nil, 0, fmt.Errorf("network error: %w", err)
+		return nil, 0, "", fmt.Errorf("network error: %w", err)
 	}
-	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
 	if err != nil {
-		return nil, resp.StatusCode, fmt.Errorf("reading response: %w", err)
+		return nil, resp.StatusCode, resp.Header.Get("Retry-After"), fmt.Errorf("reading response: %w", err)
 	}
 
 	if c.Debug {
 		fmt.Printf("<<< %d %s\n", resp.StatusCode, resp.Status)
 		if len(respBody) > 0 {
-			fmt.Printf("<<< %s\n", string(respBody))
+			fmt.Printf("<<< %s\n", redactDebugBody(respBody))
 		}
 	}
 
-	// Success responses
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		return respBody, resp.StatusCode, nil
-	}
+	return respBody, resp.StatusCode, resp.Header.Get("Retry-After"), nil
+}
 
-	// Try to parse structured API error
+func (c *Client) responseError(status int, respBody []byte) ([]byte, int, error) {
+	statusText := http.StatusText(status)
+	statusLine := fmt.Sprintf("%d %s", status, statusText)
+	if statusText == "" {
+		statusLine = fmt.Sprintf("HTTP %d", status)
+	}
+	resp := &http.Response{StatusCode: status, Status: statusLine}
 	if apiErr := parseAPIError(resp, respBody); apiErr != nil {
-		return nil, resp.StatusCode, apiErr
+		return nil, status, apiErr
 	}
-
-	// Fallback to generic HTTP error
-	return nil, resp.StatusCode, &HTTPError{
-		StatusCode: resp.StatusCode,
+	return nil, status, &HTTPError{
+		StatusCode: status,
 		Status:     resp.Status,
 		Body:       string(respBody),
 	}
+}
+
+func isRetryableStatus(status int) bool {
+	return status == http.StatusRequestTimeout || status == http.StatusTooManyRequests || status >= 500
+}
+
+func retryDelay(attempt int, retryAfter string) time.Duration {
+	if retryAfter != "" {
+		if seconds, err := strconv.Atoi(retryAfter); err == nil {
+			return minDuration(time.Duration(seconds)*time.Second, 5*time.Second)
+		}
+		if retryAt, err := http.ParseTime(retryAfter); err == nil {
+			delay := time.Until(retryAt)
+			if delay < 0 {
+				return 0
+			}
+			return minDuration(delay, 5*time.Second)
+		}
+	}
+	delay := time.Duration(100*(1<<(attempt-1))) * time.Millisecond
+	return minDuration(delay, 2*time.Second)
+}
+
+func minDuration(a, b time.Duration) time.Duration {
+	if a < b {
+		return a
+	}
+	return b
 }
