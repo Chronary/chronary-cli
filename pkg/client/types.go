@@ -27,13 +27,14 @@ type ListResponse[T any] struct {
 
 // Calendar represents a Chronary calendar resource.
 type Calendar struct {
-	ID        string          `json:"id"`
-	Name      string          `json:"name"`
-	Timezone  string          `json:"timezone"`
-	AgentID   *string         `json:"agentId,omitempty"`
-	Metadata  json.RawMessage `json:"metadata"`
-	ICalURL   string          `json:"ical_url,omitempty"`
-	CreatedAt time.Time       `json:"createdAt"`
+	ID               string          `json:"id"`
+	Name             string          `json:"name"`
+	Timezone         string          `json:"timezone"`
+	AgentID          *string         `json:"agentId,omitempty"`
+	DefaultReminders []int           `json:"default_reminders"`
+	Metadata         json.RawMessage `json:"metadata"`
+	ICalURL          string          `json:"ical_url,omitempty"`
+	CreatedAt        time.Time       `json:"createdAt"`
 }
 
 // Event represents a Chronary event resource.
@@ -47,6 +48,7 @@ type Event struct {
 	AllDay        bool            `json:"allDay"`
 	Status        string          `json:"status"`
 	Source        string          `json:"source"`
+	Reminders     []int           `json:"reminders"`
 	Metadata      json.RawMessage `json:"metadata"`
 	HoldExpiresAt *time.Time      `json:"holdExpiresAt,omitempty"`
 	HoldPriority  *int            `json:"holdPriority,omitempty"`
@@ -135,18 +137,18 @@ type CrossCalendarQueriesUsage struct {
 
 // UsageResponse is the shape returned by GET /v1/usage.
 type UsageResponse struct {
-	PeriodStart            string                    `json:"period_start"`
-	PeriodEnd              string                    `json:"period_end"`
-	Plan                   string                    `json:"plan"`
-	Agents                 UsageCounter              `json:"agents"`
-	Calendars              UsageCounter              `json:"calendars"`
-	Events                 UsageCounter              `json:"events"`
-	APICalls               UsageCounter              `json:"api_calls"`
-	Webhooks               UsageCounter              `json:"webhooks"`
-	AvailabilityQueries    UsageCounter              `json:"availability_queries"`
-	ICalSubscriptions      UsageCounter              `json:"ical_subscriptions"`
-	Holds                  HoldsUsage                `json:"holds"`
-	CrossCalendarQueries   CrossCalendarQueriesUsage `json:"cross_calendar_queries"`
+	PeriodStart          string                    `json:"period_start"`
+	PeriodEnd            string                    `json:"period_end"`
+	Plan                 string                    `json:"plan"`
+	Agents               UsageCounter              `json:"agents"`
+	Calendars            UsageCounter              `json:"calendars"`
+	Events               UsageCounter              `json:"events"`
+	APICalls             UsageCounter              `json:"api_calls"`
+	Webhooks             UsageCounter              `json:"webhooks"`
+	AvailabilityQueries  UsageCounter              `json:"availability_queries"`
+	ICalSubscriptions    UsageCounter              `json:"ical_subscriptions"`
+	Holds                HoldsUsage                `json:"holds"`
+	CrossCalendarQueries CrossCalendarQueriesUsage `json:"cross_calendar_queries"`
 }
 
 // ScopedAPIKey represents an agent-scoped API key.

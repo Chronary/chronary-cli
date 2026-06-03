@@ -186,6 +186,10 @@ func newEventsCreateCmd() *cobra.Command {
 				if status != "" {
 					payload["status"] = status
 				}
+				if cmd.Flags().Changed("reminders") {
+					reminders, _ := cmd.Flags().GetIntSlice("reminders")
+					payload["reminders"] = reminders
+				}
 				if metadataStr != "" {
 					var meta map[string]any
 					if err := json.Unmarshal([]byte(metadataStr), &meta); err != nil {
@@ -228,6 +232,7 @@ func newEventsCreateCmd() *cobra.Command {
 	cmd.Flags().String("description", "", "Event description")
 	cmd.Flags().Bool("all-day", false, "All-day event")
 	cmd.Flags().String("status", "", "Event status: confirmed, tentative, cancelled, or hold")
+	cmd.Flags().IntSlice("reminders", nil, "Reminder offsets in minutes before start (e.g. 10,1440). Max 5, each 1-40320. Omit to inherit calendar default; pass empty for none.")
 	cmd.Flags().String("metadata", "", "Event metadata as JSON string")
 	cmd.Flags().String("hold-expires-at", "", "Required when --status=hold. ISO 8601 timestamp 30s-15min in the future.")
 	cmd.Flags().Int("hold-priority", 0, "Priority for hold conflict resolution (0-100). Higher-priority holds pre-empt lower.")
@@ -343,6 +348,10 @@ func newEventsUpdateCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetString("status")
 				payload["status"] = v
 			}
+			if cmd.Flags().Changed("reminders") {
+				v, _ := cmd.Flags().GetIntSlice("reminders")
+				payload["reminders"] = v
+			}
 			if cmd.Flags().Changed("metadata") {
 				v, _ := cmd.Flags().GetString("metadata")
 				var meta map[string]any
@@ -353,7 +362,7 @@ func newEventsUpdateCmd() *cobra.Command {
 			}
 
 			if len(payload) == 0 {
-				return fmt.Errorf("at least one flag required: --title, --start, --end, --status, --description, --metadata")
+				return fmt.Errorf("at least one flag required: --title, --start, --end, --status, --reminders, --description, --metadata")
 			}
 
 			path := fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, args[0])
@@ -382,6 +391,7 @@ func newEventsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("end", "", "New end time (ISO 8601)")
 	cmd.Flags().String("description", "", "New description")
 	cmd.Flags().String("status", "", "New status: confirmed, tentative, or cancelled")
+	cmd.Flags().IntSlice("reminders", nil, "Reminder offsets in minutes before start (e.g. 10,1440). Max 5, each 1-40320. Pass empty to clear all reminders.")
 	cmd.Flags().String("metadata", "", "New metadata as JSON string")
 	cmd.MarkFlagRequired("calendar")
 

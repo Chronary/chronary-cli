@@ -15,7 +15,7 @@ import (
 
 var validWebhookEvents = []string{
 	"agent.created", "agent.updated",
-	"event.created", "event.updated", "event.deleted", "event.started", "event.ended",
+	"event.created", "event.updated", "event.deleted", "event.started", "event.ended", "event.reminder",
 	"event.hold_created", "event.hold_expired", "event.hold_released", "event.hold_confirmed",
 	"proposal.created", "proposal.responded", "proposal.confirmed", "proposal.expired", "proposal.cancelled",
 }

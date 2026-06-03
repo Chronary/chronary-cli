@@ -325,6 +325,10 @@ func newCalendarsCreateCmd() *cobra.Command {
 					"name":     name,
 					"timezone": timezone,
 				}
+				if cmd.Flags().Changed("default-reminders") {
+					defaultReminders, _ := cmd.Flags().GetIntSlice("default-reminders")
+					payload["default_reminders"] = defaultReminders
+				}
 				if metadataStr != "" {
 					var meta map[string]any
 					if err := json.Unmarshal([]byte(metadataStr), &meta); err != nil {
@@ -361,6 +365,7 @@ func newCalendarsCreateCmd() *cobra.Command {
 	cmd.Flags().String("name", "", "Calendar name (required)")
 	cmd.Flags().String("timezone", "UTC", "Calendar timezone (e.g., America/New_York)")
 	cmd.Flags().String("agent", "", "Agent ID to own the calendar")
+	cmd.Flags().IntSlice("default-reminders", nil, "Default reminder offsets in minutes before event start (e.g. 10,1440). Max 5, each 1-40320. Omit for system default ([10]).")
 	cmd.Flags().String("metadata", "", "Calendar metadata as JSON string")
 	cmd.MarkFlagRequired("name")
 
@@ -434,6 +439,10 @@ func newCalendarsUpdateCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetString("timezone")
 				payload["timezone"] = v
 			}
+			if cmd.Flags().Changed("default-reminders") {
+				v, _ := cmd.Flags().GetIntSlice("default-reminders")
+				payload["default_reminders"] = v
+			}
 			if cmd.Flags().Changed("metadata") {
 				v, _ := cmd.Flags().GetString("metadata")
 				var meta map[string]any
@@ -444,7 +453,7 @@ func newCalendarsUpdateCmd() *cobra.Command {
 			}
 
 			if len(payload) == 0 {
-				return fmt.Errorf("at least one flag required: --name, --timezone, --metadata")
+				return fmt.Errorf("at least one flag required: --name, --timezone, --default-reminders, --metadata")
 			}
 
 			body, _, err := c.Patch("/v1/calendars/"+args[0], payload)
@@ -468,6 +477,7 @@ func newCalendarsUpdateCmd() *cobra.Command {
 
 	cmd.Flags().String("name", "", "New calendar name")
 	cmd.Flags().String("timezone", "", "New timezone")
+	cmd.Flags().IntSlice("default-reminders", nil, "Default reminder offsets in minutes before event start (e.g. 10,1440). Max 5, each 1-40320. Pass empty to clear.")
 	cmd.Flags().String("metadata", "", "New metadata as JSON string")
 
 	return cmd

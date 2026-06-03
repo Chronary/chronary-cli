@@ -62,7 +62,7 @@ func TestSchedulingCreateCommand(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"scheduling", "create", fileArg,
-		"--api-key", "chr_sk_test",
+		"--api-key", "chr_sk_xxx",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
@@ -82,7 +82,7 @@ func TestSchedulingListCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"scheduling", "list", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"scheduling", "list", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -94,7 +94,7 @@ func TestSchedulingGetCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"scheduling", "get", "spr_1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"scheduling", "get", "spr_1", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -118,7 +118,7 @@ func TestSchedulingRespondCommand(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"scheduling", "respond", "spr_1", fileArg,
-		"--api-key", "chr_sk_test",
+		"--api-key", "chr_sk_xxx",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
@@ -143,7 +143,7 @@ func TestSchedulingResolveCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"scheduling", "resolve", "spr_1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"scheduling", "resolve", "spr_1", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -195,6 +195,6 @@ func TestSchedulingCancelCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"scheduling", "cancel", "spr_1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"scheduling", "cancel", "spr_1", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }

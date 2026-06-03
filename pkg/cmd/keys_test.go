@@ -37,7 +37,7 @@ func TestKeysListCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"keys", "list", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"keys", "list", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -65,7 +65,7 @@ func TestKeysCreateCommand(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"keys", "create",
-		"--api-key", "chr_sk_test",
+		"--api-key", "chr_sk_xxx",
 		"--base-url", srv.URL,
 		"--agent", "agt_123",
 		"--label", "Customer A",
@@ -100,7 +100,7 @@ func TestKeysCreateCommandWithFile(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"keys", "create", input,
-		"--api-key", "chr_sk_test",
+		"--api-key", "chr_sk_xxx",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
@@ -118,7 +118,7 @@ func TestKeysDeleteCommand(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"keys", "delete", "key_123",
-		"--api-key", "chr_sk_test",
+		"--api-key", "chr_sk_xxx",
 		"--base-url", srv.URL,
 		"--force",
 	})
@@ -129,7 +129,7 @@ func TestKeysCreateRequiresAgentWithoutFile(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"keys", "create",
-		"--api-key", "chr_sk_test",
+		"--api-key", "chr_sk_xxx",
 	})
 	assert.Error(t, rootCmd.Execute())
 }

@@ -33,7 +33,7 @@ func TestWebhooksListCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"webhooks", "list", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"webhooks", "list", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -57,7 +57,7 @@ func TestWebhooksCreateCommand(t *testing.T) {
 		"webhooks", "create",
 		"--url", "https://example.com/hook",
 		"--events", "agent.created,event.created",
-		"--api-key", "chr_sk_test",
+		"--api-key", "chr_sk_xxx",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
@@ -72,7 +72,7 @@ func TestWebhooksGetCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"webhooks", "get", "whk_1", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"webhooks", "get", "whk_1", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -87,7 +87,7 @@ func TestWebhooksUpdateCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"webhooks", "update", "whk_1", "--active=false", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"webhooks", "update", "whk_1", "--active=false", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
 
@@ -99,6 +99,6 @@ func TestWebhooksDeleteCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"webhooks", "delete", "whk_1", "--force", "--api-key", "chr_sk_test", "--base-url", srv.URL})
+	rootCmd.SetArgs([]string{"webhooks", "delete", "whk_1", "--force", "--api-key", "chr_sk_xxx", "--base-url", srv.URL})
 	require.NoError(t, rootCmd.Execute())
 }

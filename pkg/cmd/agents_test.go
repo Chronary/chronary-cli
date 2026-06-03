@@ -43,7 +43,7 @@ func TestAgentsListCommand(t *testing.T) {
 	defer srv.Close()
 
 	rootCmd := NewRootCmd("test")
-	rootCmd.SetArgs([]string{"agents", "list", "--api-key", "chr_sk_test", "--base-url", srv.URL, "--output", "json"})
+	rootCmd.SetArgs([]string{"agents", "list", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
 	err := rootCmd.Execute()
 	require.NoError(t, err)
 }
@@ -62,7 +62,7 @@ func TestAgentsListWithFilters(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"agents", "list",
-		"--api-key", "chr_sk_test",
+		"--api-key", "chr_sk_xxx",
 		"--base-url", srv.URL,
 		"--type", "ai",
 		"--status", "active",
@@ -89,7 +89,7 @@ func TestAgentsCreateCommand(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"agents", "create",
-		"--api-key", "chr_sk_test",
+		"--api-key", "chr_sk_xxx",
 		"--base-url", srv.URL,
 		"--name", "Test Bot",
 		"--output", "json",
@@ -109,7 +109,7 @@ func TestAgentsGetCommand(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"agents", "get", "agt_123",
-		"--api-key", "chr_sk_test",
+		"--api-key", "chr_sk_xxx",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
@@ -131,7 +131,7 @@ func TestAgentsUpdateCommand(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"agents", "update", "agt_123",
-		"--api-key", "chr_sk_test",
+		"--api-key", "chr_sk_xxx",
 		"--base-url", srv.URL,
 		"--name", "Renamed",
 		"--output", "json",
@@ -151,7 +151,7 @@ func TestAgentsDeleteCommand(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"agents", "delete", "agt_123",
-		"--api-key", "chr_sk_test",
+		"--api-key", "chr_sk_xxx",
 		"--base-url", srv.URL,
 		"--force",
 	})
@@ -170,7 +170,7 @@ func TestAgentsUpdateNoFlags(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{
 		"agents", "update", "agt_123",
-		"--api-key", "chr_sk_test",
+		"--api-key", "chr_sk_xxx",
 	})
 	err := rootCmd.Execute()
 	assert.Error(t, err)

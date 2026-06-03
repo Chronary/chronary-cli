@@ -29,7 +29,7 @@ func TestAvailabilityAgentCommand(t *testing.T) {
 		"availability", "agent", "agt_1",
 		"--start", "2026-04-12T00:00:00Z",
 		"--end", "2026-04-12T23:59:59Z",
-		"--api-key", "chr_sk_test",
+		"--api-key", "chr_sk_xxx",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
@@ -48,7 +48,7 @@ func TestAvailabilityCalendarCommand(t *testing.T) {
 		"availability", "calendar", "cal_1",
 		"--start", "2026-04-12T00:00:00Z",
 		"--end", "2026-04-12T23:59:59Z",
-		"--api-key", "chr_sk_test",
+		"--api-key", "chr_sk_xxx",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
@@ -73,7 +73,7 @@ func TestAvailabilityCrossCommand(t *testing.T) {
 		"--agents", "agt_1,agt_2",
 		"--start", "2026-04-12T00:00:00Z",
 		"--end", "2026-04-12T23:59:59Z",
-		"--api-key", "chr_sk_test",
+		"--api-key", "chr_sk_xxx",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
@@ -98,7 +98,7 @@ func TestAvailabilityWithSlotDuration(t *testing.T) {
 		"--end", "2026-04-12T23:59:59Z",
 		"--slot-duration", "1h",
 		"--include-busy",
-		"--api-key", "chr_sk_test",
+		"--api-key", "chr_sk_xxx",
 		"--base-url", srv.URL,
 		"--output", "json",
 	})
