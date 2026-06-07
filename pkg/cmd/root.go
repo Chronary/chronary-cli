@@ -48,6 +48,7 @@ func NewRootCmd(version string) *cobra.Command {
 	rootCmd.AddCommand(newAuditLogCmd())
 	rootCmd.AddCommand(newFeedbackCmd())
 	rootCmd.AddCommand(newPlansCmd())
+	rootCmd.AddCommand(newTermsCmd())
 
 	return rootCmd
 }
