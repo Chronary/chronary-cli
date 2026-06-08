@@ -123,6 +123,44 @@ func TestEventsDeleteCommand(t *testing.T) {
 	require.NoError(t, rootCmd.Execute())
 }
 
+func TestEventsGetCommandByID(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v1/events/evt_1", r.URL.Path)
+		json.NewEncoder(w).Encode(newTestEvent("evt_1", "Meeting", "confirmed"))
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{"events", "get", "evt_1", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
+	require.NoError(t, rootCmd.Execute())
+}
+
+func TestEventsUpdateCommandByID(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "PATCH", r.Method)
+		assert.Equal(t, "/v1/events/evt_1", r.URL.Path)
+		json.NewEncoder(w).Encode(newTestEvent("evt_1", "Updated", "confirmed"))
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{"events", "update", "evt_1", "--title", "Updated", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
+	require.NoError(t, rootCmd.Execute())
+}
+
+func TestEventsDeleteCommandByID(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "DELETE", r.Method)
+		assert.Equal(t, "/v1/events/evt_1", r.URL.Path)
+		w.WriteHeader(204)
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{"events", "delete", "evt_1", "--force", "--api-key", "chr_sk_xxx", "--base-url", srv.URL})
+	require.NoError(t, rootCmd.Execute())
+}
+
 func TestEventsCreateHoldCommand(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any

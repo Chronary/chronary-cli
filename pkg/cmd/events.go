@@ -259,11 +259,13 @@ func newEventsGetCmd() *cobra.Command {
 			}
 
 			calendarID, _ := cmd.Flags().GetString("calendar")
-			if calendarID == "" {
-				return fmt.Errorf("--calendar is required")
-			}
 
-			path := fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, args[0])
+			var path string
+			if calendarID != "" {
+				path = fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, args[0])
+			} else {
+				path = fmt.Sprintf("/v1/events/%s", args[0])
+			}
 			body, _, err := c.Get(path)
 			if err != nil {
 				return formatError(err)
@@ -301,8 +303,7 @@ func newEventsGetCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("calendar", "", "Calendar ID (required)")
-	cmd.MarkFlagRequired("calendar")
+	cmd.Flags().String("calendar", "", "Calendar ID (optional — resolved from the event if omitted)")
 
 	return cmd
 }
@@ -322,9 +323,6 @@ func newEventsUpdateCmd() *cobra.Command {
 			}
 
 			calendarID, _ := cmd.Flags().GetString("calendar")
-			if calendarID == "" {
-				return fmt.Errorf("--calendar is required")
-			}
 
 			payload := map[string]any{}
 
@@ -365,7 +363,12 @@ func newEventsUpdateCmd() *cobra.Command {
 				return fmt.Errorf("at least one flag required: --title, --start, --end, --status, --reminders, --description, --metadata")
 			}
 
-			path := fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, args[0])
+			var path string
+			if calendarID != "" {
+				path = fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, args[0])
+			} else {
+				path = fmt.Sprintf("/v1/events/%s", args[0])
+			}
 			body, _, err := c.Patch(path, payload)
 			if err != nil {
 				return formatError(err)
@@ -385,7 +388,7 @@ func newEventsUpdateCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("calendar", "", "Calendar ID (required)")
+	cmd.Flags().String("calendar", "", "Calendar ID (optional — resolved from the event if omitted)")
 	cmd.Flags().String("title", "", "New title")
 	cmd.Flags().String("start", "", "New start time (ISO 8601)")
 	cmd.Flags().String("end", "", "New end time (ISO 8601)")
@@ -393,7 +396,6 @@ func newEventsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("status", "", "New status: confirmed, tentative, or cancelled")
 	cmd.Flags().IntSlice("reminders", nil, "Reminder offsets in minutes before start (e.g. 10,1440). Max 5, each 1-40320. Pass empty to clear all reminders.")
 	cmd.Flags().String("metadata", "", "New metadata as JSON string")
-	cmd.MarkFlagRequired("calendar")
 
 	return cmd
 }
@@ -413,9 +415,6 @@ func newEventsDeleteCmd() *cobra.Command {
 			}
 
 			calendarID, _ := cmd.Flags().GetString("calendar")
-			if calendarID == "" {
-				return fmt.Errorf("--calendar is required")
-			}
 
 			force, _ := cmd.Flags().GetBool("force")
 			yes, _ := cmd.Flags().GetBool("yes")
@@ -432,7 +431,12 @@ func newEventsDeleteCmd() *cobra.Command {
 				}
 			}
 
-			path := fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, args[0])
+			var path string
+			if calendarID != "" {
+				path = fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, args[0])
+			} else {
+				path = fmt.Sprintf("/v1/events/%s", args[0])
+			}
 			_, _, err = c.Delete(path)
 			if err != nil {
 				return formatError(err)
@@ -443,10 +447,9 @@ func newEventsDeleteCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("calendar", "", "Calendar ID (required)")
+	cmd.Flags().String("calendar", "", "Calendar ID (optional — resolved from the event if omitted)")
 	cmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt (alias for --force)")
-	cmd.MarkFlagRequired("calendar")
 
 	return cmd
 }
