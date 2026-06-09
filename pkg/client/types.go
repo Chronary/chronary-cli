@@ -11,7 +11,7 @@ type Agent struct {
 	OrgID       string          `json:"orgId"`
 	Name        string          `json:"name"`
 	Type        string          `json:"type"`
-	Description *string         `json:"description,omitempty"`
+	Description *string         `json:"description"`
 	Status      string          `json:"status"`
 	Metadata    json.RawMessage `json:"metadata"`
 	CreatedAt   time.Time       `json:"createdAt"`
@@ -32,52 +32,61 @@ type ListResponse[T any] struct {
 // agent_status, ical_url, and default_reminders are snake_case because
 // formatCalendar adds them on top of the raw row.
 type Calendar struct {
-	ID               string          `json:"id"`
-	OrgID            string          `json:"orgId"`
-	AgentID          *string         `json:"agentId,omitempty"`
-	Name             string          `json:"name"`
-	Timezone         string          `json:"timezone"`
+	ID       string  `json:"id"`
+	OrgID    string  `json:"orgId"`
+	AgentID  *string `json:"agentId"`
+	Name     string  `json:"name"`
+	Timezone string  `json:"timezone"`
+	// agent_status / ical_url are always present and non-empty in the REST
+	// response, so omitempty is a no-op there. The nullable pointer fields
+	// (agentId, externalId, provider, deletedAt) drop omitempty so a JSON
+	// `null` mirrors the REST response shape exactly for `-o json`.
 	AgentStatus      string          `json:"agent_status,omitempty"`
 	ICalURL          string          `json:"ical_url,omitempty"`
-	ExternalID       *string         `json:"externalId,omitempty"`
-	Provider         *string         `json:"provider,omitempty"`
+	ExternalID       *string         `json:"externalId"`
+	Provider         *string         `json:"provider"`
 	DefaultReminders []int           `json:"default_reminders"`
 	Metadata         json.RawMessage `json:"metadata"`
-	DeletedAt        *string         `json:"deletedAt,omitempty"`
+	DeletedAt        *string         `json:"deletedAt"`
 	CreatedAt        time.Time       `json:"createdAt"`
 	UpdatedAt        time.Time       `json:"updatedAt"`
 }
 
 // Event represents a Chronary event resource.
 type Event struct {
-	ID            string          `json:"id"`
-	CalendarID    string          `json:"calendarId"`
-	Title         string          `json:"title"`
-	Description   *string         `json:"description,omitempty"`
-	StartTime     time.Time       `json:"startTime"`
-	EndTime       time.Time       `json:"endTime"`
-	AllDay        bool            `json:"allDay"`
-	Status        string          `json:"status"`
-	Source        string          `json:"source"`
-	Reminders     []int           `json:"reminders"`
-	Metadata      json.RawMessage `json:"metadata"`
-	HoldExpiresAt *time.Time      `json:"holdExpiresAt,omitempty"`
-	HoldPriority  *int            `json:"holdPriority,omitempty"`
-	CreatedAt     time.Time       `json:"createdAt"`
-	UpdatedAt     time.Time       `json:"updatedAt"`
+	ID          string          `json:"id"`
+	CalendarID  string          `json:"calendarId"`
+	Title       string          `json:"title"`
+	Description *string         `json:"description"`
+	StartTime   time.Time       `json:"startTime"`
+	EndTime     time.Time       `json:"endTime"`
+	AllDay      bool            `json:"allDay"`
+	Status      string          `json:"status"`
+	Source      string          `json:"source"`
+	Reminders   []int           `json:"reminders"`
+	Metadata    json.RawMessage `json:"metadata"`
+	// Nullable in REST (populated only for status="hold"); no omitempty so a
+	// JSON `null` mirrors the REST shape.
+	HoldExpiresAt *time.Time `json:"holdExpiresAt"`
+	HoldPriority  *int       `json:"holdPriority"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	UpdatedAt     time.Time  `json:"updatedAt"`
 }
 
 // Webhook represents a Chronary webhook subscription.
 type Webhook struct {
-	ID                  string    `json:"id"`
-	OrgID               string    `json:"orgId"`
-	URL                 string    `json:"url"`
-	Events              []string  `json:"events"`
-	Active              bool      `json:"active"`
-	ConsecutiveFailures int       `json:"consecutiveFailures"`
-	FirstFailureAt      *string   `json:"firstFailureAt,omitempty"`
-	Secret              string    `json:"secret,omitempty"`
-	CreatedAt           time.Time `json:"createdAt"`
+	ID                  string   `json:"id"`
+	OrgID               string   `json:"orgId"`
+	URL                 string   `json:"url"`
+	Events              []string `json:"events"`
+	Active              bool     `json:"active"`
+	ConsecutiveFailures int      `json:"consecutiveFailures"`
+	// firstFailureAt is nullable in REST (null until the circuit breaker trips);
+	// no omitempty so a JSON `null` mirrors the REST shape. secret keeps
+	// omitempty — it's only present in the create response, omitted on GET/LIST.
+	FirstFailureAt *string   `json:"firstFailureAt"`
+	Secret         string    `json:"secret,omitempty"`
+	CreatedAt      time.Time `json:"createdAt"`
 }
 
 // WebhookDelivery represents a single delivery attempt record.
