@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -20,7 +21,8 @@ const plansCatalogFixture = `{
       "limits": {
         "agents": 5, "calendars": 10, "events": 5000,
         "api_calls": 50000, "webhook_deliveries": 10000,
-        "availability_queries": 10000, "ical_subscriptions": 3, "proposals": 500
+        "availability_queries": 10000, "ical_subscriptions": 3, "proposals": 500,
+        "webhook_endpoints": 3, "scoped_keys": 0
       },
       "display_features": ["5 agents"],
       "recommended": false
@@ -68,6 +70,22 @@ func TestPlansListCommand(t *testing.T) {
 	rootCmd.SetArgs([]string{"plans", "list", "--base-url", srv.URL, "--output", "json"})
 	err := rootCmd.Execute()
 	require.NoError(t, err)
+}
+
+// Guards against the CLI plan model dropping live limit fields from `-o json`
+// output. webhook_endpoints and scoped_keys were previously absent from
+// PlanLimits, so they silently vanished from the machine-readable output.
+func TestPlanLimitsPreservesEndpointAndKeyCaps(t *testing.T) {
+	var resp client.PlansListResponse
+	require.NoError(t, json.Unmarshal([]byte(plansCatalogFixture), &resp))
+	require.NotEmpty(t, resp.Plans)
+
+	free := resp.Plans[0]
+	require.NotNil(t, free.Limits)
+	require.NotNil(t, free.Limits.WebhookEndpoints, "webhook_endpoints must round-trip")
+	require.Equal(t, 3, *free.Limits.WebhookEndpoints)
+	require.NotNil(t, free.Limits.ScopedKeys, "scoped_keys must round-trip")
+	require.Equal(t, 0, *free.Limits.ScopedKeys)
 }
 
 func TestFormatPlanPrice(t *testing.T) {

@@ -8,6 +8,7 @@ import (
 // Agent represents a Chronary agent resource.
 type Agent struct {
 	ID          string          `json:"id"`
+	OrgID       string          `json:"orgId"`
 	Name        string          `json:"name"`
 	Type        string          `json:"type"`
 	Description *string         `json:"description,omitempty"`
@@ -26,15 +27,25 @@ type ListResponse[T any] struct {
 }
 
 // Calendar represents a Chronary calendar resource.
+//
+// Casing mirrors the API response exactly: most fields are camelCase, but
+// agent_status, ical_url, and default_reminders are snake_case because
+// formatCalendar adds them on top of the raw row.
 type Calendar struct {
 	ID               string          `json:"id"`
+	OrgID            string          `json:"orgId"`
+	AgentID          *string         `json:"agentId,omitempty"`
 	Name             string          `json:"name"`
 	Timezone         string          `json:"timezone"`
-	AgentID          *string         `json:"agentId,omitempty"`
+	AgentStatus      string          `json:"agent_status,omitempty"`
+	ICalURL          string          `json:"ical_url,omitempty"`
+	ExternalID       *string         `json:"externalId,omitempty"`
+	Provider         *string         `json:"provider,omitempty"`
 	DefaultReminders []int           `json:"default_reminders"`
 	Metadata         json.RawMessage `json:"metadata"`
-	ICalURL          string          `json:"ical_url,omitempty"`
+	DeletedAt        *string         `json:"deletedAt,omitempty"`
 	CreatedAt        time.Time       `json:"createdAt"`
+	UpdatedAt        time.Time       `json:"updatedAt"`
 }
 
 // Event represents a Chronary event resource.
@@ -58,12 +69,15 @@ type Event struct {
 
 // Webhook represents a Chronary webhook subscription.
 type Webhook struct {
-	ID        string    `json:"id"`
-	URL       string    `json:"url"`
-	Events    []string  `json:"events"`
-	Active    bool      `json:"active"`
-	Secret    string    `json:"secret,omitempty"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID                  string    `json:"id"`
+	OrgID               string    `json:"orgId"`
+	URL                 string    `json:"url"`
+	Events              []string  `json:"events"`
+	Active              bool      `json:"active"`
+	ConsecutiveFailures int       `json:"consecutiveFailures"`
+	FirstFailureAt      *string   `json:"firstFailureAt,omitempty"`
+	Secret              string    `json:"secret,omitempty"`
+	CreatedAt           time.Time `json:"createdAt"`
 }
 
 // WebhookDelivery represents a single delivery attempt record.
@@ -276,6 +290,8 @@ type PlanLimits struct {
 	AvailabilityQueries *int `json:"availability_queries"`
 	ICalSubscriptions   *int `json:"ical_subscriptions"`
 	Proposals           *int `json:"proposals"`
+	WebhookEndpoints    *int `json:"webhook_endpoints"`
+	ScopedKeys          *int `json:"scoped_keys"`
 }
 
 // Plan is one tier in the public plan catalog.
