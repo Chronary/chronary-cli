@@ -10,8 +10,17 @@ func newVersionCmd(version string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print CLI version",
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			data := struct {
+				Version string `json:"version"`
+			}{Version: version}
+
+			if printStructured(cmd, data) {
+				return nil
+			}
+
 			fmt.Printf("chronary %s\n", version)
+			return nil
 		},
 	}
 }

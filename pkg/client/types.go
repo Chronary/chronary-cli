@@ -143,6 +143,14 @@ type UsageCounter struct {
 	Limit int `json:"limit"`
 }
 
+// ScopedKeysUsage tracks active agent-scoped API keys for the current period.
+// Distinct shape from UsageCounter: the count key is `count` (not `used`), and
+// `limit` is nullable (null = unlimited on tiers without a key cap).
+type ScopedKeysUsage struct {
+	Count int  `json:"count"`
+	Limit *int `json:"limit"`
+}
+
 // HoldsUsage tracks temporal-hold lifecycle counters for the current period.
 // Informational — not gated by any plan limit. Funnel identity:
 // `created = confirmed + expired + active` (active is derived).
@@ -168,8 +176,11 @@ type UsageResponse struct {
 	Events               UsageCounter              `json:"events"`
 	APICalls             UsageCounter              `json:"api_calls"`
 	Webhooks             UsageCounter              `json:"webhooks"`
+	WebhookEndpoints     UsageCounter              `json:"webhook_endpoints"`
 	AvailabilityQueries  UsageCounter              `json:"availability_queries"`
 	ICalSubscriptions    UsageCounter              `json:"ical_subscriptions"`
+	Proposals            UsageCounter              `json:"proposals"`
+	ScopedKeys           ScopedKeysUsage           `json:"scoped_keys"`
 	Holds                HoldsUsage                `json:"holds"`
 	CrossCalendarQueries CrossCalendarQueriesUsage `json:"cross_calendar_queries"`
 }

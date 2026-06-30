@@ -47,8 +47,10 @@ func newUsageCmd() *cobra.Command {
 				usageRow("Events", usage.Events, nc),
 				usageRow("API Calls", usage.APICalls, nc),
 				usageRow("Webhooks", usage.Webhooks, nc),
+				usageRow("Webhook Endpoints", usage.WebhookEndpoints, nc),
 				usageRow("Availability Queries", usage.AvailabilityQueries, nc),
 				usageRow("iCal Subscriptions", usage.ICalSubscriptions, nc),
+				usageRow("Proposals", usage.Proposals, nc),
 			}
 
 			output.RenderTable(output.TableDef{
@@ -62,6 +64,12 @@ func newUsageCmd() *cobra.Command {
 			fmt.Printf("\nHolds:                 created=%d  confirmed=%d  expired=%d  active=%d\n",
 				usage.Holds.Created, usage.Holds.Confirmed, usage.Holds.Expired, active)
 			fmt.Printf("Cross-cal availability: %d requests\n", usage.CrossCalendarQueries.Used)
+
+			scopedLimit := "unlimited"
+			if usage.ScopedKeys.Limit != nil {
+				scopedLimit = fmt.Sprintf("%d", *usage.ScopedKeys.Limit)
+			}
+			fmt.Printf("Scoped keys:            %d (limit %s)\n", usage.ScopedKeys.Count, scopedLimit)
 
 			return nil
 		},
