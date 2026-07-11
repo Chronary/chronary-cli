@@ -51,6 +51,7 @@ func newUsageCmd() *cobra.Command {
 				usageRow("Availability Queries", usage.AvailabilityQueries, nc),
 				usageRow("iCal Subscriptions", usage.ICalSubscriptions, nc),
 				usageRow("Proposals", usage.Proposals, nc),
+				usageRow("Recurring Events", usage.RecurringEvents, nc),
 			}
 
 			output.RenderTable(output.TableDef{

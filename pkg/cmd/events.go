@@ -58,15 +58,26 @@ func newEventsListCmd() *cobra.Command {
 			}
 
 			all, _ := cmd.Flags().GetBool("all")
-			filterParams := url.Values{}
-			if v, _ := cmd.Flags().GetString("start-after"); v != "" {
-				filterParams.Set("start_after", v)
+			expand, _ := cmd.Flags().GetBool("expand")
+			startAfter, _ := cmd.Flags().GetString("start-after")
+			startBefore, _ := cmd.Flags().GetString("start-before")
+
+			if expand && (startAfter == "" || startBefore == "") {
+				return fmt.Errorf("--expand requires both --start-after and --start-before (window of at most 366 days)")
 			}
-			if v, _ := cmd.Flags().GetString("start-before"); v != "" {
-				filterParams.Set("start_before", v)
+
+			filterParams := url.Values{}
+			if startAfter != "" {
+				filterParams.Set("start_after", startAfter)
+			}
+			if startBefore != "" {
+				filterParams.Set("start_before", startBefore)
 			}
 			if v, _ := cmd.Flags().GetString("status"); v != "" {
 				filterParams.Set("status", v)
+			}
+			if expand {
+				filterParams.Set("expand", "true")
 			}
 			path = appendQueryParams(path, filterParams)
 
@@ -134,6 +145,7 @@ func newEventsListCmd() *cobra.Command {
 	cmd.Flags().String("start-after", "", "Filter: start time after (ISO 8601)")
 	cmd.Flags().String("start-before", "", "Filter: start time before (ISO 8601)")
 	cmd.Flags().String("status", "", "Filter by status (confirmed, tentative, cancelled, hold)")
+	cmd.Flags().Bool("expand", false, "Expand recurring events into instances within the window (requires --start-after and --start-before, max 366 days apart)")
 	cmd.Flags().Int("limit", 50, "Max results to return")
 	cmd.Flags().Int("offset", 0, "Offset for pagination")
 	cmd.Flags().Bool("all", false, "Fetch all pages automatically")
@@ -168,6 +180,7 @@ func newEventsCreateCmd() *cobra.Command {
 				description, _ := cmd.Flags().GetString("description")
 				allDay, _ := cmd.Flags().GetBool("all-day")
 				status, _ := cmd.Flags().GetString("status")
+				recurrenceRule, _ := cmd.Flags().GetString("recurrence-rule")
 				metadataStr, _ := cmd.Flags().GetString("metadata")
 				holdExpiresAt, _ := cmd.Flags().GetString("hold-expires-at")
 				holdPriority, _ := cmd.Flags().GetInt("hold-priority")
@@ -189,6 +202,9 @@ func newEventsCreateCmd() *cobra.Command {
 				if cmd.Flags().Changed("reminders") {
 					reminders, _ := cmd.Flags().GetIntSlice("reminders")
 					payload["reminders"] = reminders
+				}
+				if recurrenceRule != "" {
+					payload["recurrence_rule"] = recurrenceRule
 				}
 				if metadataStr != "" {
 					var meta map[string]any
@@ -233,6 +249,7 @@ func newEventsCreateCmd() *cobra.Command {
 	cmd.Flags().Bool("all-day", false, "All-day event")
 	cmd.Flags().String("status", "", "Event status: confirmed, tentative, cancelled, or hold")
 	cmd.Flags().IntSlice("reminders", nil, "Reminder offsets in minutes before start (e.g. 10,1440). Max 5, each 1-40320. Omit to inherit calendar default; pass empty for none.")
+	cmd.Flags().String("recurrence-rule", "", "Make the event recurring: RFC 5545 RRULE subset without the RRULE: prefix (e.g. FREQ=WEEKLY;BYDAY=MO,WE;COUNT=12). Not allowed with --status=hold.")
 	cmd.Flags().String("metadata", "", "Event metadata as JSON string")
 	cmd.Flags().String("hold-expires-at", "", "Required when --status=hold. ISO 8601 timestamp 30s-15min in the future.")
 	cmd.Flags().Int("hold-priority", 0, "Priority for hold conflict resolution (0-100). Higher-priority holds pre-empt lower.")
@@ -350,6 +367,16 @@ func newEventsUpdateCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetIntSlice("reminders")
 				payload["reminders"] = v
 			}
+			if cmd.Flags().Changed("recurrence-rule") {
+				v, _ := cmd.Flags().GetString("recurrence-rule")
+				if v == "" {
+					// Explicit empty value clears the rule (JSON null) — the
+					// event becomes a one-off again.
+					payload["recurrence_rule"] = nil
+				} else {
+					payload["recurrence_rule"] = v
+				}
+			}
 			if cmd.Flags().Changed("metadata") {
 				v, _ := cmd.Flags().GetString("metadata")
 				var meta map[string]any
@@ -360,7 +387,7 @@ func newEventsUpdateCmd() *cobra.Command {
 			}
 
 			if len(payload) == 0 {
-				return fmt.Errorf("at least one flag required: --title, --start, --end, --status, --reminders, --description, --metadata")
+				return fmt.Errorf("at least one flag required: --title, --start, --end, --status, --reminders, --recurrence-rule, --description, --metadata")
 			}
 
 			var path string
@@ -395,6 +422,7 @@ func newEventsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("description", "", "New description")
 	cmd.Flags().String("status", "", "New status: confirmed, tentative, or cancelled")
 	cmd.Flags().IntSlice("reminders", nil, "Reminder offsets in minutes before start (e.g. 10,1440). Max 5, each 1-40320. Pass empty to clear all reminders.")
+	cmd.Flags().String("recurrence-rule", "", "Set or change the series rule (full-series edit): RFC 5545 RRULE subset without the RRULE: prefix. Pass an empty value (--recurrence-rule \"\") to clear the rule and make the event one-off.")
 	cmd.Flags().String("metadata", "", "New metadata as JSON string")
 
 	return cmd
@@ -415,14 +443,21 @@ func newEventsDeleteCmd() *cobra.Command {
 			}
 
 			calendarID, _ := cmd.Flags().GetString("calendar")
+			occurrenceStart, _ := cmd.Flags().GetString("occurrence-start")
 
 			force, _ := cmd.Flags().GetBool("force")
 			yes, _ := cmd.Flags().GetBool("yes")
 			if !force && !yes {
+				title := fmt.Sprintf("Delete event %s?", args[0])
+				description := "This action cannot be undone."
+				if occurrenceStart != "" {
+					title = fmt.Sprintf("Cancel the %s occurrence of event %s?", occurrenceStart, args[0])
+					description = "Only this occurrence is cancelled; the rest of the series is unaffected."
+				}
 				var confirm bool
 				err := huh.NewConfirm().
-					Title(fmt.Sprintf("Delete event %s?", args[0])).
-					Description("This action cannot be undone.").
+					Title(title).
+					Description(description).
 					Value(&confirm).
 					Run()
 				if err != nil || !confirm {
@@ -437,6 +472,31 @@ func newEventsDeleteCmd() *cobra.Command {
 			} else {
 				path = fmt.Sprintf("/v1/events/%s", args[0])
 			}
+			if occurrenceStart != "" {
+				// Occurrence-cancel (EXDATE): the API returns 200 with the
+				// updated series master instead of 204.
+				q := url.Values{}
+				q.Set("occurrence_start", occurrenceStart)
+				path = appendQueryParams(path, q)
+
+				body, _, err := c.Delete(path)
+				if err != nil {
+					return formatError(err)
+				}
+
+				var evt client.Event
+				if err := json.Unmarshal(body, &evt); err != nil {
+					return fmt.Errorf("parsing response: %w", err)
+				}
+
+				if printStructured(cmd, evt) {
+					return nil
+				}
+
+				fmt.Printf("Cancelled the %s occurrence of event %s (%s).\n", occurrenceStart, evt.ID, evt.Title)
+				return nil
+			}
+
 			_, _, err = c.Delete(path)
 			if err != nil {
 				return formatError(err)
@@ -448,6 +508,7 @@ func newEventsDeleteCmd() *cobra.Command {
 	}
 
 	cmd.Flags().String("calendar", "", "Calendar ID (optional — resolved from the event if omitted)")
+	cmd.Flags().String("occurrence-start", "", "Cancel a single occurrence of a recurring event instead of deleting it: ISO 8601 start time of the occurrence. Prints the updated series master.")
 	cmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt (alias for --force)")
 

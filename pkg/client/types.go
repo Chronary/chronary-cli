@@ -69,8 +69,17 @@ type Event struct {
 	// JSON `null` mirrors the REST shape.
 	HoldExpiresAt *time.Time `json:"holdExpiresAt"`
 	HoldPriority  *int       `json:"holdPriority"`
-	CreatedAt     time.Time  `json:"createdAt"`
-	UpdatedAt     time.Time  `json:"updatedAt"`
+	// RecurrenceRule (RFC 5545 RRULE subset, no "RRULE:" prefix) is set on
+	// recurring series masters; null for one-off events. RecurrenceExdates are
+	// the ISO 8601 starts of individually cancelled occurrences (EXDATE).
+	RecurrenceRule    *string  `json:"recurrenceRule"`
+	RecurrenceExdates []string `json:"recurrenceExdates"`
+	// Present only on expanded instances (expand=true): the series master id
+	// and the occurrence start the instance was generated for.
+	RecurringEventID  string    `json:"recurringEventId,omitempty"`
+	OriginalStartTime string    `json:"originalStartTime,omitempty"`
+	CreatedAt         time.Time `json:"createdAt"`
+	UpdatedAt         time.Time `json:"updatedAt"`
 }
 
 // Webhook represents a Chronary webhook subscription.
@@ -180,6 +189,7 @@ type UsageResponse struct {
 	AvailabilityQueries  UsageCounter              `json:"availability_queries"`
 	ICalSubscriptions    UsageCounter              `json:"ical_subscriptions"`
 	Proposals            UsageCounter              `json:"proposals"`
+	RecurringEvents      UsageCounter              `json:"recurring_events"`
 	ScopedKeys           ScopedKeysUsage           `json:"scoped_keys"`
 	Holds                HoldsUsage                `json:"holds"`
 	CrossCalendarQueries CrossCalendarQueriesUsage `json:"cross_calendar_queries"`

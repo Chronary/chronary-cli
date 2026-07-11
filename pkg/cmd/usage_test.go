@@ -29,6 +29,7 @@ func TestUsageCommand(t *testing.T) {
 			"availability_queries": map[string]int{"used": 10, "limit": 200},
 			"ical_subscriptions":   map[string]int{"used": 1, "limit": 5},
 			"proposals":            map[string]int{"used": 4, "limit": 500},
+			"recurring_events":     map[string]int{"used": 2, "limit": 10},
 			"scoped_keys":          map[string]any{"count": 2, "limit": 50},
 		})
 	}))
@@ -49,12 +50,15 @@ func TestUsageCommand(t *testing.T) {
 	assert.Equal(t, 3, usage.WebhookEndpoints.Limit)
 	assert.Equal(t, 4, usage.Proposals.Used)
 	assert.Equal(t, 500, usage.Proposals.Limit)
+	assert.Equal(t, 2, usage.RecurringEvents.Used)
+	assert.Equal(t, 10, usage.RecurringEvents.Limit)
 	assert.Equal(t, 2, usage.ScopedKeys.Count)
 	require.NotNil(t, usage.ScopedKeys.Limit)
 	assert.Equal(t, 50, *usage.ScopedKeys.Limit)
 
 	assert.Contains(t, out, "webhook_endpoints")
 	assert.Contains(t, out, "proposals")
+	assert.Contains(t, out, "recurring_events")
 	assert.Contains(t, out, "scoped_keys")
 }
 

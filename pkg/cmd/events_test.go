@@ -191,6 +191,143 @@ func TestEventsCreateHoldCommand(t *testing.T) {
 	require.NoError(t, rootCmd.Execute())
 }
 
+func TestEventsCreateRecurringCommand(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		assert.Equal(t, "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=12", body["recurrence_rule"])
+		w.WriteHeader(201)
+		evt := newTestEvent("evt_rec1", "Standup", "confirmed")
+		rule := "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=12"
+		evt.RecurrenceRule = &rule
+		evt.RecurrenceExdates = []string{}
+		json.NewEncoder(w).Encode(evt)
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{
+		"events", "create",
+		"--calendar", "cal_1",
+		"--title", "Standup",
+		"--start", "2026-04-13T09:00:00Z",
+		"--end", "2026-04-13T09:30:00Z",
+		"--recurrence-rule", "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=12",
+		"--api-key", "chr_sk_xxx",
+		"--base-url", srv.URL,
+		"--output", "json",
+	})
+	require.NoError(t, rootCmd.Execute())
+}
+
+func TestEventsUpdateRecurrenceRuleCommand(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "PATCH", r.Method)
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		assert.Equal(t, "FREQ=DAILY;COUNT=5", body["recurrence_rule"])
+		json.NewEncoder(w).Encode(newTestEvent("evt_rec1", "Standup", "confirmed"))
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{"events", "update", "evt_rec1", "--recurrence-rule", "FREQ=DAILY;COUNT=5", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
+	require.NoError(t, rootCmd.Execute())
+}
+
+func TestEventsUpdateClearRecurrenceRuleCommand(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		// --recurrence-rule "" must send an explicit JSON null (clear the rule).
+		v, present := body["recurrence_rule"]
+		assert.True(t, present, "expected recurrence_rule key in payload")
+		assert.Nil(t, v)
+		json.NewEncoder(w).Encode(newTestEvent("evt_rec1", "Standup", "confirmed"))
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{"events", "update", "evt_rec1", "--recurrence-rule", "", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
+	require.NoError(t, rootCmd.Execute())
+}
+
+func TestEventsListExpandCommand(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v1/calendars/cal_1/events", r.URL.Path)
+		q := r.URL.Query()
+		assert.Equal(t, "true", q.Get("expand"))
+		assert.Equal(t, "2026-04-13T00:00:00Z", q.Get("start_after"))
+		assert.Equal(t, "2026-05-13T00:00:00Z", q.Get("start_before"))
+		evt := newTestEvent("evt_rec1", "Standup", "confirmed")
+		evt.RecurringEventID = "evt_rec1"
+		evt.OriginalStartTime = "2026-04-15T09:00:00Z"
+		json.NewEncoder(w).Encode(map[string]any{
+			"data": []client.Event{evt}, "total": 1, "limit": 50, "offset": 0,
+		})
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{
+		"events", "list", "--calendar", "cal_1",
+		"--expand",
+		"--start-after", "2026-04-13T00:00:00Z",
+		"--start-before", "2026-05-13T00:00:00Z",
+		"--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json",
+	})
+	require.NoError(t, rootCmd.Execute())
+}
+
+func TestEventsListExpandRequiresWindow(t *testing.T) {
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{"events", "list", "--calendar", "cal_1", "--expand", "--api-key", "chr_sk_xxx"})
+	assert.Error(t, rootCmd.Execute())
+}
+
+func TestEventsDeleteOccurrenceCommand(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "DELETE", r.Method)
+		assert.Equal(t, "/v1/calendars/cal_1/events/evt_rec1", r.URL.Path)
+		assert.Equal(t, "2026-04-15T09:00:00Z", r.URL.Query().Get("occurrence_start"))
+		// Occurrence-cancel returns 200 with the updated series master, not 204.
+		evt := newTestEvent("evt_rec1", "Standup", "confirmed")
+		rule := "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=12"
+		evt.RecurrenceRule = &rule
+		evt.RecurrenceExdates = []string{"2026-04-15T09:00:00Z"}
+		json.NewEncoder(w).Encode(evt)
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{
+		"events", "delete", "evt_rec1", "--calendar", "cal_1",
+		"--occurrence-start", "2026-04-15T09:00:00Z",
+		"--force", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json",
+	})
+	require.NoError(t, rootCmd.Execute())
+}
+
+func TestEventsDeleteOccurrenceCommandByID(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "DELETE", r.Method)
+		assert.Equal(t, "/v1/events/evt_rec1", r.URL.Path)
+		assert.Equal(t, "2026-04-15T09:00:00Z", r.URL.Query().Get("occurrence_start"))
+		evt := newTestEvent("evt_rec1", "Standup", "confirmed")
+		evt.RecurrenceExdates = []string{"2026-04-15T09:00:00Z"}
+		json.NewEncoder(w).Encode(evt)
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{
+		"events", "delete", "evt_rec1",
+		"--occurrence-start", "2026-04-15T09:00:00Z",
+		"--force", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json",
+	})
+	require.NoError(t, rootCmd.Execute())
+}
+
 func TestEventsConfirmCommand(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "PUT", r.Method)
