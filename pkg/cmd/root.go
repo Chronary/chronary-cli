@@ -49,6 +49,7 @@ func NewRootCmd(version string) *cobra.Command {
 	rootCmd.AddCommand(newFeedbackCmd())
 	rootCmd.AddCommand(newPlansCmd())
 	rootCmd.AddCommand(newTermsCmd())
+	rootCmd.AddCommand(newConnectionLinksCmd())
 
 	return rootCmd
 }
