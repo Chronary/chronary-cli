@@ -84,6 +84,7 @@ func TestAvailabilityWithSlotDuration(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "1h", r.URL.Query().Get("slot_duration"))
 		assert.Equal(t, "true", r.URL.Query().Get("include_busy"))
+		assert.Equal(t, "true", r.URL.Query().Get("allow_stale"))
 		json.NewEncoder(w).Encode(map[string]any{
 			"slots": []any{},
 			"busy":  []map[string]string{{"start": "2026-04-12T09:00:00Z", "end": "2026-04-12T10:00:00Z"}},
@@ -98,6 +99,7 @@ func TestAvailabilityWithSlotDuration(t *testing.T) {
 		"--end", "2026-04-12T23:59:59Z",
 		"--slot-duration", "1h",
 		"--include-busy",
+		"--allow-stale",
 		"--api-key", "chr_sk_xxx",
 		"--base-url", srv.URL,
 		"--output", "json",

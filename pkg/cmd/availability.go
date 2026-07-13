@@ -29,6 +29,7 @@ func availabilityFlags(cmd *cobra.Command) {
 	cmd.Flags().String("end", "", "End of window, ISO 8601 (required)")
 	cmd.Flags().String("slot-duration", "30m", "Slot duration: 15m, 30m, 45m, 1h, 2h")
 	cmd.Flags().Bool("include-busy", false, "Include busy blocks in response")
+	cmd.Flags().Bool("allow-stale", false, "Allow usable stale human-calendar cache (exploration only; default is fail closed)")
 	cmd.MarkFlagRequired("start")
 	cmd.MarkFlagRequired("end")
 }
@@ -47,6 +48,9 @@ func buildAvailParams(cmd *cobra.Command) url.Values {
 	if v, _ := cmd.Flags().GetBool("include-busy"); v {
 		params.Set("include_busy", "true")
 	}
+	if v, _ := cmd.Flags().GetBool("allow-stale"); v {
+		params.Set("allow_stale", "true")
+	}
 	return params
 }
 
@@ -61,6 +65,9 @@ func printAvailability(cmd *cobra.Command, body []byte) error {
 	}
 
 	nc := noColor(cmd)
+	if resp.AvailabilityState != "" && resp.AvailabilityState != "complete" {
+		fmt.Printf("Warning: availability is %s; required human-calendar data is not current.\n", resp.AvailabilityState)
+	}
 
 	if len(resp.Slots) == 0 {
 		fmt.Println("No available slots found.")

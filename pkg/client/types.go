@@ -142,8 +142,25 @@ type BusyBlock struct {
 
 // AvailabilityResponse is the shape returned by availability endpoints.
 type AvailabilityResponse struct {
-	Slots []AvailabilitySlot `json:"slots"`
-	Busy  []BusyBlock        `json:"busy,omitempty"`
+	Agents            []string               `json:"agents,omitempty"`
+	CalendarID        string                 `json:"calendar_id,omitempty"`
+	Slots             []AvailabilitySlot     `json:"slots"`
+	Busy              []BusyBlock            `json:"busy,omitempty"`
+	PerAgentBusy      map[string][]BusyBlock `json:"per_agent_busy,omitempty"`
+	AvailabilityState string                 `json:"availability_state"`
+	Sources           AvailabilitySources    `json:"sources"`
+	Warnings          []AvailabilityWarning  `json:"warnings"`
+}
+
+type AvailabilitySources struct {
+	Chronary     string  `json:"chronary"`
+	External     string  `json:"external"`
+	LastSyncedAt *string `json:"last_synced_at"`
+}
+
+type AvailabilityWarning struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
 }
 
 // UsageCounter tracks used vs limit for a resource.
