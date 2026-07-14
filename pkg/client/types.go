@@ -31,7 +31,7 @@ type ListResponse[T any] struct {
 // Casing mirrors the API response exactly: most fields are camelCase, but
 // agent_status, ical_url, and default_reminders are snake_case because
 // formatCalendar adds them on top of the raw row.
-// BookingPage is a public scheduling link (Calendly-style) for a calendar.
+// BookingPage is a public, hosted scheduling link for a calendar.
 type BookingPage struct {
 	ID                      string          `json:"id"`
 	OrgID                   string          `json:"org_id"`
@@ -229,6 +229,7 @@ type UsageResponse struct {
 	ICalSubscriptions    UsageCounter              `json:"ical_subscriptions"`
 	Proposals            UsageCounter              `json:"proposals"`
 	RecurringEvents      UsageCounter              `json:"recurring_events"`
+	BookingPages         UsageCounter              `json:"booking_pages"`
 	ScopedKeys           ScopedKeysUsage           `json:"scoped_keys"`
 	Holds                HoldsUsage                `json:"holds"`
 	CrossCalendarQueries CrossCalendarQueriesUsage `json:"cross_calendar_queries"`

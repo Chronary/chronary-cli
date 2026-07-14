@@ -2,6 +2,10 @@
 
 All notable changes to `chronary-cli` will be documented in this file starting with the soft-launch release.
 
+## 0.8.1 — 2026-07-14
+
+- Include the `booking_pages` quota counter in `usage` JSON/table output (it was dropped). No competitor references in help text.
+
 ## 0.8.0 — 2026-07-14
 
 - Add `booking-pages` commands (create/list/get/update/delete) for agent-created public scheduling links (#1036).
