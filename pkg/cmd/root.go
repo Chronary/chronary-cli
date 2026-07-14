@@ -39,6 +39,7 @@ func NewRootCmd(version string) *cobra.Command {
 	rootCmd.AddCommand(newKeysCmd())
 	rootCmd.AddCommand(newAgentsCmd())
 	rootCmd.AddCommand(newCalendarsCmd())
+	rootCmd.AddCommand(newBookingPagesCmd())
 	rootCmd.AddCommand(newEventsCmd())
 	rootCmd.AddCommand(newAvailabilityCmd())
 	rootCmd.AddCommand(newWebhooksCmd())

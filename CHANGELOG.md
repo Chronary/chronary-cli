@@ -2,6 +2,10 @@
 
 All notable changes to `chronary-cli` will be documented in this file starting with the soft-launch release.
 
+## 0.8.0 — 2026-07-14
+
+- Add `booking-pages` commands (create/list/get/update/delete) for agent-created public scheduling links (#1036).
+
 ## 0.7.0 — 2026-07-12
 
 - Add `--allow-stale` to availability commands and surface completeness/source-health fields in structured output.
