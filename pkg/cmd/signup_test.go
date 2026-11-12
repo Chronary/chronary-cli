@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -49,6 +50,37 @@ func TestAuthSignupNewOrg(t *testing.T) {
 		"--output", "json",
 	})
 	require.NoError(t, rootCmd.Execute())
+}
+
+func TestAuthSignupTableShowsNewKeyOnce(t *testing.T) {
+	const newKey = "chr_sk_restricted_ONETIMEKEY4321"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"org_id":   "org_abc123",
+			"agent_id": "agt_abc123",
+			"api_key":  newKey,
+			"message":  "Verification code sent to email",
+		})
+	}))
+	defer srv.Close()
+
+	out := captureStdout(t, func() {
+		rootCmd := NewRootCmd("test")
+		rootCmd.SetArgs([]string{
+			"auth", "signup",
+			"--email", "alice@example.com",
+			"--agent-name", "Alice Bot",
+			"--tos-version", "2026-04-17",
+			"--base-url", srv.URL,
+		})
+		require.NoError(t, rootCmd.Execute())
+	})
+
+	// The new key is the point of signup, so it is shown, but only once: the
+	// next-step hint refers to it instead of repeating it.
+	assert.Equal(t, 1, strings.Count(out, newKey))
+	assert.Contains(t, out, "--api-key <the API key above>")
 }
 
 func TestAuthSignupExistingOrgReturnsOnlyMessage(t *testing.T) {

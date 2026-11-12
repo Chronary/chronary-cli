@@ -50,6 +50,15 @@ func newAgentsListCmd() *cobra.Command {
 			if v, _ := cmd.Flags().GetString("status"); v != "" {
 				params.Set("status", v)
 			}
+			if v, _ := cmd.Flags().GetString("search"); v != "" {
+				params.Set("q", v)
+			}
+			if v, _ := cmd.Flags().GetString("sort"); v != "" {
+				params.Set("sort", v)
+			}
+			if v, _ := cmd.Flags().GetBool("include-decommissioned"); v {
+				params.Set("include_decommissioned", "true")
+			}
 
 			path := "/v1/agents"
 
@@ -118,6 +127,9 @@ func newAgentsListCmd() *cobra.Command {
 
 	cmd.Flags().String("type", "", "Filter by type (ai, human, resource)")
 	cmd.Flags().String("status", "", "Filter by status (active, paused, decommissioned)")
+	cmd.Flags().String("search", "", "Search by name (substring) or exact agent ID")
+	cmd.Flags().String("sort", "", "Sort order: created_at (default, newest first) or name")
+	cmd.Flags().Bool("include-decommissioned", false, "Include decommissioned (deleted) agents, which are hidden by default")
 	cmd.Flags().Int("limit", 50, "Max results to return")
 	cmd.Flags().Int("offset", 0, "Offset for pagination")
 	cmd.Flags().Bool("all", false, "Fetch all pages automatically")

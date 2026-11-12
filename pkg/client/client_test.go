@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -235,4 +236,31 @@ func TestRedactDebugBody(t *testing.T) {
 	assert.NotContains(t, redacted, "whsec_plain")
 	assert.NotContains(t, redacted, "tok_secret")
 	assert.Contains(t, redacted, `"ok":true`)
+}
+
+func TestDebugOutputMasksAPIKey(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The real key still goes on the wire; only the debug dump is masked.
+		assert.Equal(t, "Bearer chr_sk_SECRETBODYvalue9876", r.Header.Get("Authorization"))
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"api_key":"chr_ak_SECRETRESPONSEKEY1111"}`))
+	}))
+	defer srv.Close()
+
+	orig := os.Stdout
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stdout = w
+
+	c := NewClient(srv.URL, "chr_sk_SECRETBODYvalue9876", true)
+	_, _, reqErr := c.Get("/health")
+
+	require.NoError(t, w.Close())
+	os.Stdout = orig
+	out, err := io.ReadAll(r)
+	require.NoError(t, err)
+	require.NoError(t, reqErr)
+
+	assert.Contains(t, string(out), ">>> Authorization: Bearer chr_sk_...9876")
+	assert.NotContains(t, string(out), "SECRET")
 }

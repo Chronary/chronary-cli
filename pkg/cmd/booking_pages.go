@@ -24,6 +24,8 @@ func newBookingPagesCmd() *cobra.Command {
 	bookingPagesCmd.AddCommand(newBookingPagesGetCmd())
 	bookingPagesCmd.AddCommand(newBookingPagesUpdateCmd())
 	bookingPagesCmd.AddCommand(newBookingPagesDeleteCmd())
+	bookingPagesCmd.AddCommand(newBookingPagesBookingsCmd())
+	bookingPagesCmd.AddCommand(newBookingPagesRotateSlugCmd())
 
 	return bookingPagesCmd
 }
@@ -42,6 +44,9 @@ func newBookingPagesListCmd() *cobra.Command {
 			}
 
 			path := "/v1/booking-pages"
+			if v, _ := cmd.Flags().GetString("calendar"); v != "" {
+				path = appendQueryParams(path, url.Values{"calendar_id": []string{v}})
+			}
 			all, _ := cmd.Flags().GetBool("all")
 
 			var body []byte
@@ -109,8 +114,123 @@ func newBookingPagesListCmd() *cobra.Command {
 	cmd.Flags().Int("limit", 50, "Max results to return")
 	cmd.Flags().Int("offset", 0, "Offset for pagination")
 	cmd.Flags().Bool("all", false, "Fetch all pages automatically")
+	cmd.Flags().String("calendar", "", "Only pages bound to this calendar ID")
 
 	return cmd
+}
+
+func newBookingPagesBookingsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "bookings <id>",
+		Short: "List the bookings made through a booking page (newest first)",
+		Long: "Lists the events booked through the page with the invitee's name and email, newest start first. " +
+			"Pass the printed next cursor with --cursor for the next page. " +
+			"Bookings made before this command's API endpoint was released are not linked to their page.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := clientFromCmd(cmd)
+			if err != nil {
+				return err
+			}
+			if err := requireAPIKey(c); err != nil {
+				return err
+			}
+
+			params := url.Values{}
+			if v, _ := cmd.Flags().GetInt("limit"); v > 0 {
+				params.Set("limit", strconv.Itoa(v))
+			}
+			if v, _ := cmd.Flags().GetString("cursor"); v != "" {
+				params.Set("cursor", v)
+			}
+			path := "/v1/booking-pages/" + args[0] + "/bookings"
+			path = appendQueryParams(path, params)
+			body, _, err := c.Get(path)
+			if err != nil {
+				return formatError(err)
+			}
+
+			var resp client.BookingList
+			if err := json.Unmarshal(body, &resp); err != nil {
+				return fmt.Errorf("parsing response: %w", err)
+			}
+
+			if printStructured(cmd, resp) {
+				return nil
+			}
+
+			nc := noColor(cmd)
+			rows := make([][]string, len(resp.Data))
+			for i, b := range resp.Data {
+				rows[i] = []string{
+					b.ID,
+					b.StartTime.Format("2006-01-02 15:04 MST"),
+					b.Status,
+					derefOr(b.InviteeName, "-"),
+					derefOr(b.InviteeEmail, "-"),
+				}
+			}
+
+			output.RenderTable(output.TableDef{
+				Headers: []string{"Event ID", "Start", "Status", "Invitee", "Email"},
+				Rows:    rows,
+			}, nc)
+
+			if resp.NextCursor != nil {
+				fmt.Printf("\nMore bookings: --cursor %s\n", *resp.NextCursor)
+			}
+			return nil
+		},
+	}
+
+	cmd.Flags().Int("limit", 50, "Max results to return (1-100)")
+	cmd.Flags().String("cursor", "", "The next cursor printed by the previous page")
+
+	return cmd
+}
+
+func newBookingPagesRotateSlugCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "rotate-slug <id>",
+		Short: "Replace a booking page's public link (the old link stops working)",
+		Long: "Gives the booking page a new slug and prints its new booking URL. " +
+			"The old /book/<slug> link stops working at once; existing bookings are unaffected.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := clientFromCmd(cmd)
+			if err != nil {
+				return err
+			}
+			if err := requireAPIKey(c); err != nil {
+				return err
+			}
+
+			body, _, err := c.Post("/v1/booking-pages/"+args[0]+"/rotate-slug", nil)
+			if err != nil {
+				return formatError(err)
+			}
+
+			var page client.BookingPage
+			if err := json.Unmarshal(body, &page); err != nil {
+				return fmt.Errorf("parsing response: %w", err)
+			}
+
+			if printStructured(cmd, page) {
+				return nil
+			}
+
+			fmt.Printf("Link rotated for %s\n", page.ID)
+			fmt.Printf("URL: %s\n", page.BookingURL)
+			return nil
+		},
+	}
+}
+
+func derefOr(s *string, fallback string) string {
+	if s == nil || *s == "" {
+		return fallback
+	}
+	return *s
 }
 
 func newBookingPagesCreateCmd() *cobra.Command {

@@ -166,6 +166,21 @@ func TestAgentsNoAPIKey(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestAgentsListSearchFlags(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		assert.Equal(t, "sales", q.Get("q"))
+		assert.Equal(t, "name", q.Get("sort"))
+		assert.Equal(t, "true", q.Get("include_decommissioned"))
+		json.NewEncoder(w).Encode(map[string]any{"data": []client.Agent{}, "total": 0, "limit": 50, "offset": 0})
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{"agents", "list", "--search", "sales", "--sort", "name", "--include-decommissioned", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
+	require.NoError(t, rootCmd.Execute())
+}
+
 func TestAgentsUpdateNoFlags(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{

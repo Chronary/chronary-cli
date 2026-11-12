@@ -127,3 +127,34 @@ func TestICalSyncCommand(t *testing.T) {
 	rootCmd.SetArgs([]string{"ical", "sync", "ics_1", "--api-key", "chr_sk_xxx", "--base-url", srv.URL})
 	require.NoError(t, rootCmd.Execute())
 }
+
+func TestICalPauseAndResumeCommands(t *testing.T) {
+	for _, tc := range []struct{ action, status string }{{"pause", "paused"}, {"resume", "active"}} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "POST", r.Method)
+			assert.Equal(t, "/v1/ical-subscriptions/ics_1/"+tc.action, r.URL.Path)
+			json.NewEncoder(w).Encode(newTestICalSub("ics_1", "agt_1", "cal_1", tc.status))
+		}))
+
+		rootCmd := NewRootCmd("test")
+		rootCmd.SetArgs([]string{"ical", tc.action, "ics_1", "--api-key", "chr_sk_xxx", "--base-url", srv.URL})
+		require.NoError(t, rootCmd.Execute())
+
+		rootCmd = NewRootCmd("test")
+		rootCmd.SetArgs([]string{"ical", tc.action, "ics_1", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
+		require.NoError(t, rootCmd.Execute())
+		srv.Close()
+	}
+}
+
+func TestICalResumeCommandError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+		json.NewEncoder(w).Encode(map[string]any{"error": map[string]string{"type": "not_found", "message": "Subscription not found"}})
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{"ical", "resume", "ics_missing", "--api-key", "chr_sk_xxx", "--base-url", srv.URL})
+	require.Error(t, rootCmd.Execute())
+}

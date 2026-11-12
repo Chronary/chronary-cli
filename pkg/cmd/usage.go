@@ -9,7 +9,74 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func newUsageHistoryCmd() *cobra.Command {
+	var months int
+	cmd := &cobra.Command{
+		Use:   "history",
+		Short: "Show monthly usage totals for the last 1-12 months",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if months < 1 || months > 12 {
+				return fmt.Errorf("--months must be between 1 and 12")
+			}
+			c, err := clientFromCmd(cmd)
+			if err != nil {
+				return err
+			}
+			if err := requireAPIKey(c); err != nil {
+				return err
+			}
+
+			path := fmt.Sprintf("/v1/usage/history?months=%d", months)
+			body, _, err := c.Get(path)
+			if err != nil {
+				return formatError(err)
+			}
+
+			var history client.UsageHistoryResponse
+			if err := json.Unmarshal(body, &history); err != nil {
+				return fmt.Errorf("parsing response: %w", err)
+			}
+
+			if printStructured(cmd, history) {
+				return nil
+			}
+
+			rows := make([][]string, 0, len(history.Data))
+			for _, m := range history.Data {
+				label := m.Period
+				if m.IsCurrent {
+					label += " (to date)"
+				}
+				rows = append(rows, []string{
+					label,
+					fmt.Sprintf("%d", m.Metrics.APICalls),
+					fmt.Sprintf("%d", m.Metrics.Events),
+					fmt.Sprintf("%d", m.Metrics.WebhookDeliveries),
+					fmt.Sprintf("%d", m.Metrics.AvailabilityQueries),
+					fmt.Sprintf("%d", m.Metrics.Proposals),
+				})
+			}
+
+			fmt.Printf("Plan: %s (limits shown are for the current plan)\n\n", history.Plan)
+			output.RenderTable(output.TableDef{
+				Headers: []string{"Month (UTC)", "API Calls", "Events", "Webhook Deliveries", "Availability Queries", "Proposals"},
+				Rows:    rows,
+			}, noColor(cmd))
+			return nil
+		},
+	}
+	cmd.Flags().IntVar(&months, "months", 6, "Number of months to show (1-12)")
+	return cmd
+}
+
 func newUsageCmd() *cobra.Command {
+	cmd := newUsageBaseCmd()
+	cmd.AddCommand(newUsageHistoryCmd())
+	return cmd
+}
+
+func newUsageBaseCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "usage",
 		Short: "Show current usage and limits",
@@ -60,11 +127,11 @@ func newUsageCmd() *cobra.Command {
 				Rows:    rows,
 			}, nc)
 
-			// Informational counters (no plan limit, never gated on these). Funnel:
-			// active = created - confirmed - expired
-			active := usage.Holds.Created - usage.Holds.Confirmed - usage.Holds.Expired
+			// Informational counters (no plan limit, never gated on these).
+			// created/confirmed/expired are monthly; active is the API's live
+			// count of unexpired holds (#1191), so it stays right across months.
 			fmt.Printf("\nHolds:                 created=%d  confirmed=%d  expired=%d  active=%d\n",
-				usage.Holds.Created, usage.Holds.Confirmed, usage.Holds.Expired, active)
+				usage.Holds.Created, usage.Holds.Confirmed, usage.Holds.Expired, usage.Holds.Active)
 			fmt.Printf("Cross-cal availability: %d requests\n", usage.CrossCalendarQueries.Used)
 
 			scopedLimit := "unlimited"

@@ -139,3 +139,70 @@ func TestKeysNoAPIKey(t *testing.T) {
 	rootCmd.SetArgs([]string{"keys", "list"})
 	assert.Error(t, rootCmd.Execute())
 }
+
+func TestKeysCreateExpiresIn(t *testing.T) {
+	expires := time.Now().UTC().Add(90 * 24 * time.Hour)
+	created := client.CreatedScopedAPIKey{
+		ScopedAPIKey: newTestScopedKey("key_exp", "chr_ak_ABCD1234", "agt_123", nil),
+		Key:          "chr_ak_SECRET123",
+	}
+	created.ExpiresAt = &expires
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		assert.Equal(t, "90d", body["expires_in"])
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(created)
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{
+		"keys", "create",
+		"--api-key", "chr_sk_xxx",
+		"--base-url", srv.URL,
+		"--agent", "agt_123",
+		"--expires-in", "90d",
+	})
+	require.NoError(t, rootCmd.Execute())
+}
+
+func TestKeysCreateRejectsUnknownExpiresIn(t *testing.T) {
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{
+		"keys", "create",
+		"--api-key", "chr_sk_xxx",
+		"--base-url", "http://127.0.0.1:1",
+		"--agent", "agt_123",
+		"--expires-in", "7d",
+	})
+	err := rootCmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--expires-in must be one of 30d, 60d, 90d, 180d, 365d")
+}
+
+func TestFormatKeyExpiry(t *testing.T) {
+	now := time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC)
+	past := now.Add(-time.Second)
+	future := time.Date(2027, 2, 2, 9, 30, 0, 0, time.UTC)
+	assert.Equal(t, "never", formatKeyExpiry(nil, now))
+	assert.Equal(t, "expired", formatKeyExpiry(&past, now))
+	assert.Equal(t, "expired", formatKeyExpiry(&now, now))
+	assert.Equal(t, "2027-02-02 09:30", formatKeyExpiry(&future, now))
+}
+
+func TestKeysListShowsExpiryTable(t *testing.T) {
+	expired := time.Now().UTC().Add(-time.Hour)
+	k := newTestScopedKey("key_1", "chr_ak_ABCD1234", "agt_1", nil)
+	k.ExpiresAt = &expired
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{"keys": []client.ScopedAPIKey{k}})
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{"keys", "list", "--api-key", "chr_sk_xxx", "--base-url", srv.URL})
+	require.NoError(t, rootCmd.Execute())
+}

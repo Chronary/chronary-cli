@@ -2,7 +2,7 @@ package cmd
 
 import "testing"
 
-// validWebhookEvents must mirror the server's WEBHOOK_EVENT_TYPES (18 events).
+// validWebhookEvents must mirror the server's WEBHOOK_EVENT_TYPES (21 events).
 // webhook.deactivated was previously missing — guard against that drift.
 func TestValidWebhookEventsParity(t *testing.T) {
 	want := []string{
@@ -10,7 +10,9 @@ func TestValidWebhookEventsParity(t *testing.T) {
 		"event.created", "event.updated", "event.deleted", "event.started", "event.ended", "event.reminder",
 		"event.hold_created", "event.hold_expired", "event.hold_released", "event.hold_confirmed",
 		"proposal.created", "proposal.responded", "proposal.confirmed", "proposal.expired", "proposal.cancelled",
-		"webhook.deactivated",
+		"webhook.deactivated", "org.plan_changed",
+		"calendar_connection.reauthorization_required",
+		"usage.threshold_crossed",
 	}
 
 	if len(validWebhookEvents) != len(want) {

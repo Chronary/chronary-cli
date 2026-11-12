@@ -40,6 +40,31 @@ func TestFeedbackSubmit(t *testing.T) {
 	require.NoError(t, rootCmd.Execute())
 }
 
+func TestFeedbackSubmitAcceptsSupportType(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(raw, &body))
+		assert.Equal(t, "support", body["type"])
+
+		w.WriteHeader(http.StatusAccepted)
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "accepted"})
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{
+		"feedback", "submit",
+		"--type", "support",
+		"--message", "I need a hand setting up my agent keys.",
+		"--api-key", "chr_sk_xxx",
+		"--base-url", srv.URL,
+		"--output", "json",
+	})
+	require.NoError(t, rootCmd.Execute())
+}
+
 func TestFeedbackSubmitRejectsInvalidType(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{

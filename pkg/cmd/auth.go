@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/huh"
 	"github.com/Chronary/chronary-cli/pkg/config"
 	"github.com/Chronary/chronary-cli/pkg/output"
+	"github.com/Chronary/chronary-cli/pkg/redact"
+	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
 
@@ -119,8 +120,7 @@ func newAuthStatusCmd() *cobra.Command {
 				return nil
 			}
 
-			// Mask key: show prefix + first 4 chars after prefix
-			masked := maskKey(c.APIKey)
+			masked := redact.MaskKey(c.APIKey)
 
 			if printStructured(cmd, map[string]any{
 				"authenticated": true,
@@ -160,7 +160,7 @@ func newAuthListCmd() *cobra.Command {
 
 			if printStructured(cmd, map[string]any{
 				"active":   cfg.ActiveProfile,
-				"profiles": cfg.Profiles,
+				"profiles": maskedProfiles(cfg.Profiles),
 			}) {
 				return nil
 			}
@@ -175,7 +175,7 @@ func newAuthListCmd() *cobra.Command {
 				rows = append(rows, []string{
 					active,
 					name,
-					maskKey(p.APIKey),
+					redact.MaskKey(p.APIKey),
 				})
 			}
 
@@ -241,22 +241,16 @@ func newAuthRemoveCmd() *cobra.Command {
 	}
 }
 
-// maskKey shows the prefix and first 4 chars, hiding the rest.
-func maskKey(key string) string {
-	// New keys: chr_sk_xxxx...
-	// Legacy keys: chr_sk_live_xxxx...
-	prefixes := []string{"chr_sk_live_", "chr_sk_"}
-	for _, p := range prefixes {
-		if strings.HasPrefix(key, p) {
-			rest := key[len(p):]
-			if len(rest) <= 4 {
-				return key
-			}
-			return p + rest[:4] + "..."
+// maskedProfiles copies the saved profiles with every API key masked, so
+// structured `auth list` output never prints a stored key in full.
+func maskedProfiles(profiles map[string]*config.Profile) map[string]*config.Profile {
+	out := make(map[string]*config.Profile, len(profiles))
+	for name, p := range profiles {
+		if p == nil {
+			out[name] = nil
+			continue
 		}
+		out[name] = &config.Profile{APIKey: redact.MaskKey(p.APIKey), BaseURL: p.BaseURL}
 	}
-	if len(key) > 8 {
-		return key[:8] + "..."
-	}
-	return key
+	return out
 }

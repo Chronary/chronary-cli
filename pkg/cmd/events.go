@@ -20,6 +20,7 @@ func newEventsCmd() *cobra.Command {
 	}
 
 	eventsCmd.AddCommand(newEventsListCmd())
+	eventsCmd.AddCommand(newEventsListAllCmd())
 	eventsCmd.AddCommand(newEventsCreateCmd())
 	eventsCmd.AddCommand(newEventsGetCmd())
 	eventsCmd.AddCommand(newEventsUpdateCmd())
@@ -147,6 +148,139 @@ func newEventsListCmd() *cobra.Command {
 	cmd.Flags().String("status", "", "Filter by status (confirmed, tentative, cancelled, hold)")
 	cmd.Flags().Bool("expand", false, "Expand recurring events into instances within the window (requires --start-after and --start-before, max 366 days apart)")
 	cmd.Flags().Int("limit", 50, "Max results to return")
+	cmd.Flags().Int("offset", 0, "Offset for pagination")
+	cmd.Flags().Bool("all", false, "Fetch all pages automatically")
+
+	return cmd
+}
+
+// newEventsListAllCmd lists events across all of the organization's
+// calendars (GET /v1/events, #1202).
+func newEventsListAllCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list-all",
+		Short: "List events across all of the organization's calendars",
+		Long: "Lists events across all of the organization's calendars, ordered by start time. " +
+			"Repeat --calendar to narrow to several calendars (at most 50). " +
+			"--search matches titles (case-insensitive) and needs --start-after and --start-before at most 31 days apart.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := clientFromCmd(cmd)
+			if err != nil {
+				return err
+			}
+			if err := requireAPIKey(c); err != nil {
+				return err
+			}
+
+			all, _ := cmd.Flags().GetBool("all")
+			expand, _ := cmd.Flags().GetBool("expand")
+			startAfter, _ := cmd.Flags().GetString("start-after")
+			startBefore, _ := cmd.Flags().GetString("start-before")
+			search, _ := cmd.Flags().GetString("search")
+
+			if expand && (startAfter == "" || startBefore == "") {
+				return fmt.Errorf("--expand requires both --start-after and --start-before (window of at most 366 days)")
+			}
+			if search != "" && (startAfter == "" || startBefore == "") {
+				return fmt.Errorf("--search requires both --start-after and --start-before (window of at most 31 days)")
+			}
+
+			filterParams := url.Values{}
+			calendarIDs, _ := cmd.Flags().GetStringArray("calendar")
+			for _, id := range calendarIDs {
+				filterParams.Add("calendar_id", id)
+			}
+			if v, _ := cmd.Flags().GetString("agent"); v != "" {
+				filterParams.Set("agent_id", v)
+			}
+			if startAfter != "" {
+				filterParams.Set("start_after", startAfter)
+			}
+			if startBefore != "" {
+				filterParams.Set("start_before", startBefore)
+			}
+			if v, _ := cmd.Flags().GetString("status"); v != "" {
+				filterParams.Set("status", v)
+			}
+			if v, _ := cmd.Flags().GetString("source"); v != "" {
+				filterParams.Set("source", v)
+			}
+			if search != "" {
+				filterParams.Set("q", search)
+			}
+			if expand {
+				filterParams.Set("expand", "true")
+			}
+			path := "/v1/events"
+			path = appendQueryParams(path, filterParams)
+
+			var body []byte
+			if all {
+				items, total, err := fetchAllPages(c, path, 100)
+				if err != nil {
+					return formatError(err)
+				}
+				body, err = rewrapList(items, total)
+				if err != nil {
+					return fmt.Errorf("building response: %w", err)
+				}
+			} else {
+				pagParams := url.Values{}
+				if v, _ := cmd.Flags().GetInt("limit"); v > 0 {
+					pagParams.Set("limit", strconv.Itoa(v))
+				}
+				if v, _ := cmd.Flags().GetInt("offset"); v > 0 {
+					pagParams.Set("offset", strconv.Itoa(v))
+				}
+				path = appendQueryParams(path, pagParams)
+				var fetchErr error
+				body, _, fetchErr = c.Get(path)
+				if fetchErr != nil {
+					return formatError(fetchErr)
+				}
+			}
+
+			var resp client.ListResponse[client.Event]
+			if err := json.Unmarshal(body, &resp); err != nil {
+				return fmt.Errorf("parsing response: %w", err)
+			}
+
+			if printStructured(cmd, resp) {
+				return nil
+			}
+
+			nc := noColor(cmd)
+			rows := make([][]string, len(resp.Data))
+			for i, evt := range resp.Data {
+				rows[i] = []string{
+					evt.ID,
+					evt.CalendarID,
+					output.Truncate(evt.Title, 30),
+					evt.StartTime.Format("2006-01-02 15:04"),
+					output.ColorStatus(evt.Status, nc),
+					evt.Source,
+				}
+			}
+
+			output.RenderTable(output.TableDef{
+				Headers: []string{"ID", "Calendar", "Title", "Start", "Status", "Source"},
+				Rows:    rows,
+			}, nc)
+
+			fmt.Printf("\nShowing %d of %d events\n", len(resp.Data), resp.Total)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringArray("calendar", nil, "Calendar ID to include (repeat for several, at most 50)")
+	cmd.Flags().String("agent", "", "Only this agent's calendars")
+	cmd.Flags().String("start-after", "", "Filter: start time at or after (ISO 8601)")
+	cmd.Flags().String("start-before", "", "Filter: start time at or before (ISO 8601)")
+	cmd.Flags().String("status", "", "Filter by status (confirmed, tentative, cancelled, hold)")
+	cmd.Flags().String("source", "", "Filter by source (internal, external_ical)")
+	cmd.Flags().String("search", "", "Case-insensitive title search (needs a window of at most 31 days)")
+	cmd.Flags().Bool("expand", false, "Expand recurring events into instances within the window (requires --start-after and --start-before, max 366 days apart)")
+	cmd.Flags().Int("limit", 50, "Max results to return (at most 100)")
 	cmd.Flags().Int("offset", 0, "Offset for pagination")
 	cmd.Flags().Bool("all", false, "Fetch all pages automatically")
 

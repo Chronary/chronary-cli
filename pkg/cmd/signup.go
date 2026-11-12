@@ -19,6 +19,8 @@ The API returns:
     is restricted to the verify endpoint until you run ` + "`chronary auth verify`" + `.
   - On an email that already has an org: only an opaque message (so signup
     cannot be used to enumerate existing accounts).
+  - While sign-ups are paused: ` + "`waitlisted: true`" + ` and a message, the same for
+    every email, with no key.
 
 This command does NOT save credentials to a profile — copy the key it prints,
 or pipe it into ` + "`chronary auth login --profile <name>`" + ` yourself.`,
@@ -57,13 +59,22 @@ or pipe it into ` + "`chronary auth login --profile <name>`" + ` yourself.`,
 				OrgID   string `json:"org_id,omitempty"`
 				AgentID string `json:"agent_id,omitempty"`
 				APIKey  string `json:"api_key,omitempty"`
-				Message string `json:"message"`
+				// Set on the 202 sent while sign-ups are paused (#1655).
+				Waitlisted bool   `json:"waitlisted,omitempty"`
+				Message    string `json:"message"`
 			}
 			if err := json.Unmarshal(body, &resp); err != nil {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
+			// Structured output carries the new key on purpose: agents parse
+			// it from stdout, and it is never saved or shown again.
 			if printStructured(cmd, resp) {
+				return nil
+			}
+
+			if resp.Waitlisted {
+				fmt.Println(resp.Message)
 				return nil
 			}
 
@@ -76,10 +87,15 @@ or pipe it into ` + "`chronary auth login --profile <name>`" + ` yourself.`,
 			fmt.Printf("%s\n\n", resp.Message)
 			fmt.Printf("Org ID:    %s\n", resp.OrgID)
 			fmt.Printf("Agent ID:  %s\n", resp.AgentID)
+			// Intentional one-time display of a newly issued key: signup does
+			// not save it, so this stdout line is the caller's only copy. It is
+			// printed once, only on stdout, and never in debug output, logs or
+			// errors (the --debug response dump redacts it). The next-step hint
+			// below points at this line instead of repeating the key.
 			fmt.Printf("API key:   %s   (restricted — run `chronary auth verify` first)\n", resp.APIKey)
 			fmt.Println()
 			fmt.Println("Next: check your email for the OTP, then run:")
-			fmt.Printf("  chronary auth verify --otp <code> --api-key %s\n", resp.APIKey)
+			fmt.Println("  chronary auth verify --otp <code> --api-key <the API key above>")
 			return nil
 		},
 	}
@@ -121,8 +137,9 @@ the full API.`,
 			}
 
 			var resp struct {
-				Verified bool   `json:"verified"`
-				Message  string `json:"message"`
+				Verified         bool    `json:"verified"`
+				SandboxPromotion *string `json:"sandbox_promotion"`
+				Message          string  `json:"message"`
 			}
 			if err := json.Unmarshal(body, &resp); err != nil {
 				return fmt.Errorf("parsing response: %w", err)

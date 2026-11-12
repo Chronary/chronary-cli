@@ -54,6 +54,35 @@ func TestEventsListByAgent(t *testing.T) {
 	require.NoError(t, rootCmd.Execute())
 }
 
+func TestEventsListAll(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v1/events", r.URL.Path)
+		q := r.URL.Query()
+		assert.Equal(t, []string{"cal_1", "cal_2"}, q["calendar_id"])
+		assert.Equal(t, "standup", q.Get("q"))
+		assert.Equal(t, "2026-04-01T00:00:00Z", q.Get("start_after"))
+		json.NewEncoder(w).Encode(map[string]any{
+			"data":  []client.Event{newTestEvent("evt_1", "Standup", "confirmed")},
+			"total": 1, "limit": 50, "offset": 0, "next_cursor": nil,
+		})
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{
+		"events", "list-all", "--calendar", "cal_1", "--calendar", "cal_2", "--search", "standup",
+		"--start-after", "2026-04-01T00:00:00Z", "--start-before", "2026-04-15T00:00:00Z",
+		"--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json",
+	})
+	require.NoError(t, rootCmd.Execute())
+}
+
+func TestEventsListAllSearchNeedsWindow(t *testing.T) {
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{"events", "list-all", "--search", "x", "--api-key", "chr_sk_xxx"})
+	assert.Error(t, rootCmd.Execute())
+}
+
 func TestEventsListRequiresScope(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{"events", "list", "--api-key", "chr_sk_xxx"})

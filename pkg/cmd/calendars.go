@@ -26,8 +26,50 @@ func newCalendarsCmd() *cobra.Command {
 	calendarsCmd.AddCommand(newCalendarsDeleteCmd())
 	calendarsCmd.AddCommand(newCalendarsContextCmd())
 	calendarsCmd.AddCommand(newCalendarsAvailabilityRulesCmd())
+	calendarsCmd.AddCommand(newCalendarsRotateICalTokenCmd())
 
 	return calendarsCmd
+}
+
+func newCalendarsRotateICalTokenCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "rotate-ical-token <id>",
+		Short: "Regenerate a calendar's iCal subscribe URL (the old URL stops working)",
+		Long: "Replaces the secret token in the calendar's iCal subscribe URL and prints the new URL. " +
+			"The old URL stops working; copies cached elsewhere can be served for up to 5 minutes. " +
+			"Calendar apps subscribed to the old URL must be re-subscribed. Requires an Organization key.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := clientFromCmd(cmd)
+			if err != nil {
+				return err
+			}
+			if err := requireAPIKey(c); err != nil {
+				return err
+			}
+
+			body, _, err := c.Post("/v1/calendars/"+args[0]+"/ical-token/rotate", nil)
+			if err != nil {
+				return formatError(err)
+			}
+
+			var cal client.Calendar
+			if err := json.Unmarshal(body, &cal); err != nil {
+				return fmt.Errorf("parsing response: %w", err)
+			}
+
+			if printStructured(cmd, cal) {
+				return nil
+			}
+
+			fmt.Printf("Subscribe URL regenerated for %s\n", cal.ID)
+			// Intentional display: the new subscribe URL is what this command
+			// produces, and the user must paste it into a calendar app. Printed
+			// only on stdout; the --debug response dump redacts it.
+			fmt.Printf("iCal URL: %s\n", cal.ICalURL)
+			return nil
+		},
+	}
 }
 
 func newCalendarsContextCmd() *cobra.Command {
@@ -223,11 +265,14 @@ func newCalendarsListCmd() *cobra.Command {
 			agentID, _ := cmd.Flags().GetString("agent")
 			all, _ := cmd.Flags().GetBool("all")
 
-			var path string
+			search, _ := cmd.Flags().GetString("search")
+
+			path := "/v1/calendars"
 			if agentID != "" {
 				path = fmt.Sprintf("/v1/agents/%s/calendars", agentID)
-			} else {
-				path = "/v1/calendars"
+			}
+			if search != "" {
+				path = appendQueryParams(path, url.Values{"q": []string{search}})
 			}
 
 			var body []byte
@@ -292,6 +337,7 @@ func newCalendarsListCmd() *cobra.Command {
 	}
 
 	cmd.Flags().String("agent", "", "Filter by agent ID")
+	cmd.Flags().String("search", "", "Search by name (substring) or exact calendar ID")
 	cmd.Flags().Int("limit", 50, "Max results to return")
 	cmd.Flags().Int("offset", 0, "Offset for pagination")
 	cmd.Flags().Bool("all", false, "Fetch all pages automatically")

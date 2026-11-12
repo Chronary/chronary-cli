@@ -39,6 +39,48 @@ func TestCalendarsListCommand(t *testing.T) {
 	require.NoError(t, rootCmd.Execute())
 }
 
+func TestCalendarsListSearch(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v1/calendars", r.URL.Path)
+		assert.Equal(t, "Work", r.URL.Query().Get("q"))
+		assert.Equal(t, "10", r.URL.Query().Get("limit"))
+		json.NewEncoder(w).Encode(map[string]any{"data": []any{}, "total": 0, "limit": 10, "offset": 0, "next_cursor": nil})
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{"calendars", "list", "--search", "Work", "--limit", "10", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
+	require.NoError(t, rootCmd.Execute())
+}
+
+func TestCalendarsListSearchWithAgent(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v1/agents/agt_1/calendars", r.URL.Path)
+		assert.Equal(t, "Work", r.URL.Query().Get("q"))
+		json.NewEncoder(w).Encode(map[string]any{"data": []any{}, "total": 0, "limit": 50, "offset": 0, "next_cursor": nil})
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{"calendars", "list", "--agent", "agt_1", "--search", "Work", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
+	require.NoError(t, rootCmd.Execute())
+}
+
+func TestCalendarsRotateICalToken(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/v1/calendars/cal_1/ical-token/rotate", r.URL.Path)
+		cal := newTestCalendar("cal_1", "Work", "UTC")
+		cal.ICalURL = "https://api.chronary.ai/ical/new.ics"
+		json.NewEncoder(w).Encode(cal)
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{"calendars", "rotate-ical-token", "cal_1", "--api-key", "chr_sk_xxx", "--base-url", srv.URL})
+	require.NoError(t, rootCmd.Execute())
+}
+
 func TestCalendarsListByAgent(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v1/agents/agt_1/calendars", r.URL.Path)

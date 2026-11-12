@@ -95,6 +95,56 @@ func TestUsageScopedKeysNullLimit(t *testing.T) {
 	assert.Nil(t, usage.ScopedKeys.Limit)
 }
 
+func TestUsageHistoryCommand(t *testing.T) {
+	var gotQuery string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v1/usage/history", r.URL.Path)
+		gotQuery = r.URL.RawQuery
+		json.NewEncoder(w).Encode(map[string]any{
+			"plan":   "free",
+			"months": 2,
+			"limits": map[string]any{"api_calls": 50000, "events": 2500, "webhook_deliveries": 5000, "availability_queries": 10000, "proposals": nil},
+			"data": []map[string]any{
+				{"period": "2026-09", "period_start": "2026-09-01T00:00:00.000Z", "period_end": "2026-09-30T23:59:59.000Z", "is_current": false, "metrics": map[string]int{"api_calls": 41220}},
+				{"period": "2026-10", "period_start": "2026-10-01T00:00:00.000Z", "period_end": "2026-10-31T23:59:59.000Z", "is_current": true, "metrics": map[string]int{"api_calls": 12480}},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	out := captureStdout(t, func() {
+		rootCmd := NewRootCmd("test")
+		rootCmd.SetArgs([]string{"usage", "history", "--months", "2", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
+		require.NoError(t, rootCmd.Execute())
+	})
+	assert.Equal(t, "months=2", gotQuery)
+
+	var history client.UsageHistoryResponse
+	require.NoError(t, json.Unmarshal([]byte(out), &history))
+	require.Len(t, history.Data, 2)
+	assert.True(t, history.Data[1].IsCurrent)
+	assert.Equal(t, 41220, history.Data[0].Metrics.APICalls)
+	assert.Nil(t, history.Limits.Proposals)
+
+	// Table output labels the current month.
+	table := captureStdout(t, func() {
+		rootCmd := NewRootCmd("test")
+		rootCmd.SetArgs([]string{"usage", "history", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--no-color"})
+		require.NoError(t, rootCmd.Execute())
+	})
+	assert.Equal(t, "months=6", gotQuery)
+	assert.Contains(t, table, "2026-10 (to date)")
+	assert.Contains(t, table, "41220")
+}
+
+func TestUsageHistoryRejectsBadMonths(t *testing.T) {
+	for _, m := range []string{"0", "13"} {
+		rootCmd := NewRootCmd("test")
+		rootCmd.SetArgs([]string{"usage", "history", "--months", m, "--api-key", "chr_sk_xxx", "--base-url", "http://127.0.0.1:1"})
+		assert.Error(t, rootCmd.Execute(), "months=%s", m)
+	}
+}
+
 func TestUsageNoAPIKey(t *testing.T) {
 	rootCmd := NewRootCmd("test")
 	rootCmd.SetArgs([]string{"usage"})

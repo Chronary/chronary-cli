@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Chronary/chronary-cli/pkg/redact"
 )
 
 // Version is the CLI version reported in the User-Agent header so the API
@@ -153,8 +155,7 @@ func (c *Client) doOnce(method, url string, body io.Reader) ([]byte, int, string
 	if c.Debug {
 		fmt.Printf(">>> %s %s\n", method, url)
 		if c.APIKey != "" {
-			masked := c.APIKey[:min(16, len(c.APIKey))] + "..."
-			fmt.Printf(">>> Authorization: Bearer %s\n", masked)
+			fmt.Printf(">>> Authorization: Bearer %s\n", redact.MaskKey(c.APIKey))
 		}
 	}
 

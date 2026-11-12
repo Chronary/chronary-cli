@@ -25,8 +25,68 @@ func newICalCmd() *cobra.Command {
 	icalCmd.AddCommand(newICalUpdateCmd())
 	icalCmd.AddCommand(newICalDeleteCmd())
 	icalCmd.AddCommand(newICalSyncCmd())
+	icalCmd.AddCommand(newICalPauseCmd())
+	icalCmd.AddCommand(newICalResumeCmd())
 
 	return icalCmd
+}
+
+func newICalPauseCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "pause <id>",
+		Short: "Pause an iCal subscription (stop polling it until resumed)",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := clientFromCmd(cmd)
+			if err != nil {
+				return err
+			}
+			if err := requireAPIKey(c); err != nil {
+				return err
+			}
+			body, _, err := c.Post("/v1/ical-subscriptions/"+args[0]+"/pause", nil)
+			if err != nil {
+				return formatError(err)
+			}
+			return printICalStatusChange(cmd, body, "Paused")
+		},
+	}
+}
+
+func newICalResumeCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "resume <id>",
+		Short: "Resume a paused or failing iCal subscription",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := clientFromCmd(cmd)
+			if err != nil {
+				return err
+			}
+			if err := requireAPIKey(c); err != nil {
+				return err
+			}
+			body, _, err := c.Post("/v1/ical-subscriptions/"+args[0]+"/resume", nil)
+			if err != nil {
+				return formatError(err)
+			}
+			return printICalStatusChange(cmd, body, "Resumed")
+		},
+	}
+}
+
+// printICalStatusChange prints the subscription a pause/resume returned.
+func printICalStatusChange(cmd *cobra.Command, body []byte, done string) error {
+	var sub client.ICalSubscription
+	if err := json.Unmarshal(body, &sub); err != nil {
+		return fmt.Errorf("parsing response: %w", err)
+	}
+	if printStructured(cmd, sub) {
+		return nil
+	}
+
+	fmt.Printf("%s iCal subscription %s (status: %s).\n", done, sub.ID, output.ColorStatus(sub.Status, noColor(cmd)))
+	return nil
 }
 
 func newICalListCmd() *cobra.Command {

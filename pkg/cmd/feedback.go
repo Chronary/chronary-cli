@@ -7,13 +7,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var validFeedbackTypes = []string{"bug", "feature", "friction"}
+var validFeedbackTypes = []string{"bug", "feature", "friction", "support"}
 
 func newFeedbackCmd() *cobra.Command {
 	fbCmd := &cobra.Command{
 		Use:     "feedback",
 		Aliases: []string{"fb"},
-		Short:   "Submit feedback to Chronary (bug, feature, or friction)",
+		Short:   "Submit feedback to Chronary (bug, feature, friction, or support)",
 	}
 
 	fbCmd.AddCommand(newFeedbackSubmitCmd())
@@ -41,7 +41,7 @@ Rate-limited to 25 submissions per day per organization (UTC day).`,
 			message, _ := cmd.Flags().GetString("message")
 
 			if !isValidFeedbackType(feedbackType) {
-				return fmt.Errorf("invalid --type %q (must be one of: bug, feature, friction)", feedbackType)
+				return fmt.Errorf("invalid --type %q (must be one of: bug, feature, friction, support)", feedbackType)
 			}
 			if len(message) < 10 {
 				return fmt.Errorf("--message must be at least 10 characters")
@@ -73,7 +73,7 @@ Rate-limited to 25 submissions per day per organization (UTC day).`,
 		},
 	}
 
-	cmd.Flags().String("type", "", "Feedback type: bug, feature, or friction (required)")
+	cmd.Flags().String("type", "", "Feedback type: bug, feature, friction, or support (required)")
 	cmd.Flags().String("message", "", "Feedback message, 10-2000 characters (required)")
 	cmd.MarkFlagRequired("type")
 	cmd.MarkFlagRequired("message")

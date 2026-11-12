@@ -99,6 +99,12 @@ Full docs, including every command, flag, and error code:
 
 Please file issues at [github.com/Chronary/chronary-cli/issues](https://github.com/Chronary/chronary-cli/issues).
 
+## Security and support
+
+Report vulnerabilities to [security@chronary.ai](mailto:security@chronary.ai) or through private vulnerability reporting on this package's GitHub repository. Please don't open a public issue. Read the full [security policy](https://github.com/Chronary/.github/blob/main/SECURITY.md).
+
+Version 0.x is supported with security fixes until at least **April 2031**. Fixes ship in a new 0.x release, so keep up with the latest one. Supported versions and end dates for every Chronary package are listed in the [security policy](https://github.com/Chronary/.github/blob/main/SECURITY.md#supported-versions).
+
 ## License
 
 Apache-2.0. See [LICENSE](./LICENSE).

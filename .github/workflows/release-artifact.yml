@@ -5,24 +5,34 @@ on:
     tags:
       - 'v*'
 
+# Least privilege (#1599): read-only by default; the release job raises
+# only the scopes its steps use.
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
+  contents: read
 
 jobs:
   release:
+    # contents: write for `gh release create`; id-token + attestations for
+    # actions/attest-build-provenance (runs once the mirror is public).
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
+          # Nothing pushes with the checkout token (the homebrew-tap push
+          # uses its own), so keep it out of .git/config, where install and
+          # test scripts could read it (#1659).
+          persist-credentials: false
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: go.mod
+          # No restored module/build cache in a tag-triggered release job (#1659).
+          cache: false
 
       - name: Validate release manifest
         run: |
@@ -140,7 +150,7 @@ jobs:
       - name: Attest build provenance for release archives
         # Free-tier orgs can only attest in PUBLIC repos. Auto-enables on flip.
         if: github.event.repository.visibility == 'public'
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
           subject-path: |
             dist/chronary_*.tar.gz
@@ -149,6 +159,8 @@ jobs:
             dist/chronary_*.rpm
 
       - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${GITHUB_REF_NAME}" dist/* \
             --title "chronary-cli ${GITHUB_REF_NAME}" \

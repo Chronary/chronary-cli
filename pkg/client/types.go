@@ -53,6 +53,26 @@ type BookingPage struct {
 	UpdatedAt               time.Time       `json:"updated_at"`
 }
 
+// Booking is a booking made through a booking page (snake_case, #1202).
+type Booking struct {
+	ID            string    `json:"id"`
+	BookingPageID string    `json:"booking_page_id"`
+	CalendarID    string    `json:"calendar_id"`
+	StartTime     time.Time `json:"start_time"`
+	EndTime       time.Time `json:"end_time"`
+	Status        string    `json:"status"`
+	InviteeName   *string   `json:"invitee_name"`
+	InviteeEmail  *string   `json:"invitee_email"`
+	InviteeNotes  *string   `json:"invitee_notes"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+// BookingList is one cursor page of a booking page's bookings.
+type BookingList struct {
+	Data       []Booking `json:"data"`
+	NextCursor *string   `json:"next_cursor"`
+}
+
 type Calendar struct {
 	ID       string  `json:"id"`
 	OrgID    string  `json:"orgId"`
@@ -115,9 +135,47 @@ type Webhook struct {
 	// firstFailureAt is nullable in REST (null until the circuit breaker trips);
 	// no omitempty so a JSON `null` mirrors the REST shape. secret keeps
 	// omitempty — it's only present in the create response, omitted on GET/LIST.
-	FirstFailureAt *string   `json:"firstFailureAt"`
-	Secret         string    `json:"secret,omitempty"`
-	CreatedAt      time.Time `json:"createdAt"`
+	FirstFailureAt *string `json:"firstFailureAt"`
+	// deletionPausedAt is set while a scheduled account deletion has paused
+	// this endpoint (active is then false).
+	DeletionPausedAt *string `json:"deletionPausedAt,omitempty"`
+	// deactivatedAt / deactivatedReason record when and why the endpoint
+	// last went inactive (manual, circuit_breaker, unsafe_destination_url,
+	// account_deletion); both are null while it is active.
+	DeactivatedAt     *string `json:"deactivatedAt,omitempty"`
+	DeactivatedReason *string `json:"deactivatedReason,omitempty"`
+	// previousSecretExpiresAt is set while a secret rotation's grace window
+	// is open: deliveries also carry X-Signature-Previous until then.
+	PreviousSecretExpiresAt *string   `json:"previousSecretExpiresAt,omitempty"`
+	Secret                  string    `json:"secret,omitempty"`
+	CreatedAt               time.Time `json:"createdAt"`
+}
+
+// WebhookTestSent is the response from POST /v1/webhooks/:id/test.
+type WebhookTestSent struct {
+	DeliveryID string `json:"delivery_id"`
+	WebhookID  string `json:"webhook_id"`
+	EventType  string `json:"event_type"`
+	Status     string `json:"status"`
+	IsTest     bool   `json:"is_test"`
+}
+
+// WebhookReplaySent is the response from
+// POST /v1/webhooks/:id/deliveries/:delivery_id/replay: the new delivery.
+type WebhookReplaySent struct {
+	DeliveryID         string `json:"delivery_id"`
+	WebhookID          string `json:"webhook_id"`
+	EventType          string `json:"event_type"`
+	Status             string `json:"status"`
+	ReplayOfDeliveryID string `json:"replay_of_delivery_id"`
+}
+
+// RotatedWebhookSecret is the response from POST /v1/webhooks/:id/secret/rotate:
+// the new secret, shown once. PreviousSecretExpiresAt is null for "now".
+type RotatedWebhookSecret struct {
+	WebhookID               string  `json:"webhook_id"`
+	Secret                  string  `json:"secret"`
+	PreviousSecretExpiresAt *string `json:"previous_secret_expires_at"`
 }
 
 // WebhookDelivery represents a single delivery attempt record.
@@ -130,7 +188,44 @@ type WebhookDelivery struct {
 	LastAttemptAt  *time.Time `json:"last_attempt_at"`
 	NextRetryAt    *time.Time `json:"next_retry_at"`
 	CreatedAt      time.Time  `json:"created_at"`
-	Payload        any        `json:"payload,omitempty"`
+	IsTest         bool       `json:"is_test"`
+	// ReplayOfDeliveryID is set on a replay: the first delivery of the chain.
+	ReplayOfDeliveryID *string `json:"replay_of_delivery_id"`
+	Payload            any     `json:"payload,omitempty"`
+}
+
+// WebhookDeliveryAttempt is one HTTP attempt of a webhook delivery.
+type WebhookDeliveryAttempt struct {
+	ID             string    `json:"id"`
+	AttemptNumber  int       `json:"attempt_number"`
+	StartedAt      time.Time `json:"started_at"`
+	DurationMs     *int      `json:"duration_ms"`
+	ResponseStatus *int      `json:"response_status"`
+	ResponseBody   *string   `json:"response_body"`
+	ErrorCode      *string   `json:"error_code"`
+}
+
+// WebhookDeliveryDetail is the response from
+// GET /v1/webhooks/:id/deliveries/:delivery_id.
+type WebhookDeliveryDetail struct {
+	ID                 string                   `json:"id"`
+	SubscriptionID     string                   `json:"subscription_id"`
+	EventType          string                   `json:"event_type"`
+	Status             string                   `json:"status"`
+	Attempts           int                      `json:"attempts"`
+	MaxAttempts        int                      `json:"max_attempts"`
+	LastAttemptAt      *time.Time               `json:"last_attempt_at"`
+	NextRetryAt        *time.Time               `json:"next_retry_at"`
+	CreatedAt          time.Time                `json:"created_at"`
+	LastResponseStatus *int                     `json:"last_response_status"`
+	LastErrorCode      *string                  `json:"last_error_code"`
+	LastDurationMs     *int                     `json:"last_duration_ms"`
+	IsTest             bool                     `json:"is_test"`
+	ReplayOfDeliveryID *string                  `json:"replay_of_delivery_id"`
+	Payload            any                      `json:"payload"`
+	PayloadRedacted    bool                     `json:"payload_redacted"`
+	RequestHeaders     map[string]string        `json:"request_headers"`
+	AttemptLog         []WebhookDeliveryAttempt `json:"attempt_log"`
 }
 
 // WebhookDeliveryStats contains aggregate delivery counts.
@@ -138,15 +233,18 @@ type WebhookDeliveryStats struct {
 	Pending   int `json:"pending"`
 	Delivered int `json:"delivered"`
 	Failed    int `json:"failed"`
+	Dropped   int `json:"dropped"`
 }
 
 // WebhookDeliveryListResponse is the response from GET /v1/webhooks/:id/deliveries.
 type WebhookDeliveryListResponse struct {
-	Data   []WebhookDelivery    `json:"data"`
-	Total  int                  `json:"total"`
-	Limit  int                  `json:"limit"`
-	Offset int                  `json:"offset"`
-	Stats  WebhookDeliveryStats `json:"stats"`
+	Data       []WebhookDelivery    `json:"data"`
+	Total      int                  `json:"total"`
+	Limit      int                  `json:"limit"`
+	Offset     int                  `json:"offset"`
+	NextCursor *string              `json:"next_cursor"`
+	HasMore    bool                 `json:"has_more"`
+	Stats      WebhookDeliveryStats `json:"stats"`
 }
 
 // AvailabilitySlot represents a free time slot.
@@ -200,12 +298,13 @@ type ScopedKeysUsage struct {
 }
 
 // HoldsUsage tracks temporal-hold lifecycle counters for the current period.
-// Informational — not gated by any plan limit. Funnel identity:
-// `created = confirmed + expired + active` (active is derived).
+// Informational — not gated by any plan limit. Created, Confirmed and Expired
+// are monthly counters; Active is a live count of unexpired holds.
 type HoldsUsage struct {
 	Created   int `json:"created"`
 	Confirmed int `json:"confirmed"`
 	Expired   int `json:"expired"`
+	Active    int `json:"active"`
 }
 
 // CrossCalendarQueriesUsage counts availability requests touching >1 calendar.
@@ -218,6 +317,8 @@ type CrossCalendarQueriesUsage struct {
 type UsageResponse struct {
 	PeriodStart          string                    `json:"period_start"`
 	PeriodEnd            string                    `json:"period_end"`
+	ResetsAt             string                    `json:"resets_at"`
+	GeneratedAt          string                    `json:"generated_at"`
 	Plan                 string                    `json:"plan"`
 	Agents               UsageCounter              `json:"agents"`
 	Calendars            UsageCounter              `json:"calendars"`
@@ -235,6 +336,45 @@ type UsageResponse struct {
 	CrossCalendarQueries CrossCalendarQueriesUsage `json:"cross_calendar_queries"`
 }
 
+// UsageHistoryMetrics is one month's counter totals.
+type UsageHistoryMetrics struct {
+	APICalls             int `json:"api_calls"`
+	Events               int `json:"events"`
+	WebhookDeliveries    int `json:"webhook_deliveries"`
+	AvailabilityQueries  int `json:"availability_queries"`
+	Proposals            int `json:"proposals"`
+	HoldsCreated         int `json:"holds_created"`
+	HoldsConfirmed       int `json:"holds_confirmed"`
+	HoldsExpired         int `json:"holds_expired"`
+	CrossCalendarQueries int `json:"cross_calendar_queries"`
+}
+
+// UsageHistoryMonth is one UTC calendar month of usage history.
+type UsageHistoryMonth struct {
+	Period      string              `json:"period"`
+	PeriodStart string              `json:"period_start"`
+	PeriodEnd   string              `json:"period_end"`
+	IsCurrent   bool                `json:"is_current"`
+	Metrics     UsageHistoryMetrics `json:"metrics"`
+}
+
+// UsageHistoryLimits are the current plan's limits (nil = unlimited).
+type UsageHistoryLimits struct {
+	APICalls            *int `json:"api_calls"`
+	Events              *int `json:"events"`
+	WebhookDeliveries   *int `json:"webhook_deliveries"`
+	AvailabilityQueries *int `json:"availability_queries"`
+	Proposals           *int `json:"proposals"`
+}
+
+// UsageHistoryResponse is the shape returned by GET /v1/usage/history.
+type UsageHistoryResponse struct {
+	Plan   string              `json:"plan"`
+	Months int                 `json:"months"`
+	Limits UsageHistoryLimits  `json:"limits"`
+	Data   []UsageHistoryMonth `json:"data"`
+}
+
 // ScopedAPIKey represents an agent-scoped API key.
 type ScopedAPIKey struct {
 	ID        string    `json:"id"`
@@ -242,6 +382,17 @@ type ScopedAPIKey struct {
 	AgentID   string    `json:"agent_id"`
 	Label     *string   `json:"label"`
 	CreatedAt time.Time `json:"created_at"`
+	// LastUsedAt is approximate (updated at most every 5 minutes); nil if never used.
+	LastUsedAt        *time.Time `json:"last_used_at"`
+	LastUsedUserAgent *string    `json:"last_used_user_agent"`
+	// CreatedVia is one of signup, console, api, mcp or unknown.
+	CreatedVia string `json:"created_via"`
+	// CreatedByKeyPrefix is the creating Organization key's prefix (api and mcp).
+	CreatedByKeyPrefix *string `json:"created_by_key_prefix"`
+	// Note is a free-text note about the key, set in the console.
+	Note *string `json:"note"`
+	// ExpiresAt is when the key stops working (401 key_expired); nil = never expires.
+	ExpiresAt *time.Time `json:"expires_at"`
 }
 
 // CreatedScopedAPIKey is the create response for an agent-scoped API key.
@@ -371,6 +522,7 @@ type Plan struct {
 	Tagline         string      `json:"tagline"`
 	Price           *int        `json:"price"`
 	Currency        *string     `json:"currency"`
+	AnnualPrice     *int        `json:"annual_price,omitempty"`
 	Limits          *PlanLimits `json:"limits"`
 	DisplayFeatures []string    `json:"display_features"`
 	Recommended     bool        `json:"recommended"`
@@ -388,6 +540,9 @@ type AuditLogEntry struct {
 	ID             string  `json:"id"`
 	Action         string  `json:"action"`
 	ActorKeyPrefix *string `json:"actor_key_prefix"`
+	ActorType      *string `json:"actor_type"`
+	ActorID        *string `json:"actor_id"`
+	ActorLabel     *string `json:"actor_label"`
 	AgentID        *string `json:"agent_id"`
 	Resource       *string `json:"resource"`
 	IP             *string `json:"ip"`
@@ -407,4 +562,70 @@ type AuditLogResponse struct {
 	} `json:"pagination"`
 	RetentionDays *int `json:"retention_days"`
 	RangeClamped  bool `json:"range_clamped"`
+}
+
+// BillingPrice is the org's current subscription price (minor units).
+type BillingPrice struct {
+	Amount       int    `json:"amount"`
+	Currency     string `json:"currency"`
+	Interval     string `json:"interval"`
+	TaxExclusive bool   `json:"tax_exclusive"`
+}
+
+// BillingUpgradeOption is a plan/interval a human can upgrade to.
+type BillingUpgradeOption struct {
+	Plan             string `json:"plan"`
+	Interval         string `json:"interval"`
+	Amount           int    `json:"amount"`
+	Currency         string `json:"currency"`
+	SavingsVsMonthly int    `json:"savings_vs_monthly"`
+	Via              string `json:"via,omitempty"`
+}
+
+// UpgradeRequest is an agent-initiated request for a human to upgrade.
+type UpgradeRequest struct {
+	ID                   string  `json:"id"`
+	Status               string  `json:"status"`
+	Plan                 string  `json:"plan"`
+	Interval             string  `json:"interval"`
+	Reason               *string `json:"reason"`
+	Feature              *string `json:"feature"`
+	Metric               *string `json:"metric"`
+	RequestedVia         string  `json:"requested_via"`
+	RequestedByKeyPrefix *string `json:"requested_by_key_prefix"`
+	ApprovalURL          *string `json:"approval_url"`
+	CreatedAt            string  `json:"created_at"`
+	ExpiresAt            string  `json:"expires_at"`
+	CompletedAt          *string `json:"completed_at"`
+	DeclinedAt           *string `json:"declined_at"`
+	CanceledAt           *string `json:"canceled_at"`
+	OwnerNotification    string  `json:"owner_notification,omitempty"`
+	Reused               bool    `json:"reused,omitempty"`
+}
+
+// BillingSummary is the shape returned by GET /v1/billing.
+type BillingSummary struct {
+	Plan                  string                 `json:"plan"`
+	PlanSource            *string                `json:"plan_source"`
+	PlanExpiresAt         *string                `json:"plan_expires_at"`
+	Status                *string                `json:"status"`
+	Interval              *string                `json:"interval"`
+	CurrentPeriodEnd      *string                `json:"current_period_end"`
+	CancelAt              *string                `json:"cancel_at"`
+	CancelAtPeriodEnd     bool                   `json:"cancel_at_period_end"`
+	RenewsAt              *string                `json:"renews_at"`
+	PendingPlan           *string                `json:"pending_plan,omitempty"`
+	PendingPlanInterval   *string                `json:"pending_plan_interval,omitempty"`
+	PendingPlanAt         *string                `json:"pending_plan_at,omitempty"`
+	Price                 *BillingPrice          `json:"price"`
+	HasBillingAccount     bool                   `json:"has_billing_account"`
+	SelfServeUpgrade      bool                   `json:"self_serve_upgrade"`
+	UpgradeOptions        []BillingUpgradeOption `json:"upgrade_options"`
+	UpgradeURL            *string                `json:"upgrade_url"`
+	ManageURL             string                 `json:"manage_url"`
+	ContactURL            *string                `json:"contact_url"`
+	PendingUpgradeRequest *UpgradeRequest        `json:"pending_upgrade_request"`
+	Offer                 any                    `json:"offer"`
+	PastDue               any                    `json:"past_due"`
+	Credit                any                    `json:"credit"`
 }

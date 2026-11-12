@@ -3,7 +3,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
+	"net/url"
+	"strconv"
 
 	"github.com/Chronary/chronary-cli/pkg/client"
 	"github.com/Chronary/chronary-cli/pkg/output"
@@ -14,7 +15,7 @@ func newAuditLogCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "audit-log",
 		Short: "Query the organization audit log",
-		Long:  "List mutating API operations and auth lifecycle events for your organization, clamped to the per-tier retention window (Free: 7d, Pro: 90d).",
+		Long:  "List mutating API operations and auth lifecycle events for your organization, clamped to the per-tier retention window (Free: 3 days, Pro: 90 days, Custom: per contract).",
 	}
 	cmd.AddCommand(newAuditLogListCmd())
 	return cmd
@@ -26,6 +27,12 @@ func newAuditLogListCmd() *cobra.Command {
 		to             string
 		action         string
 		actorKeyPrefix string
+		actorType      string
+		actorID        string
+		requestID      string
+		resource       string
+		statusClass    string
+		category       string
 		cursor         string
 		limit          int
 	)
@@ -42,29 +49,31 @@ func newAuditLogListCmd() *cobra.Command {
 				return err
 			}
 
-			params := make([]string, 0, 6)
-			if from != "" {
-				params = append(params, "from="+from)
-			}
-			if to != "" {
-				params = append(params, "to="+to)
-			}
-			if action != "" {
-				params = append(params, "action="+action)
-			}
-			if actorKeyPrefix != "" {
-				params = append(params, "actor_key_prefix="+actorKeyPrefix)
-			}
-			if cursor != "" {
-				params = append(params, "cursor="+cursor)
+			q := url.Values{}
+			for key, value := range map[string]string{
+				"from":             from,
+				"to":               to,
+				"action":           action,
+				"actor_key_prefix": actorKeyPrefix,
+				"actor_type":       actorType,
+				"actor_id":         actorID,
+				"request_id":       requestID,
+				"resource":         resource,
+				"status_class":     statusClass,
+				"category":         category,
+				"cursor":           cursor,
+			} {
+				if value != "" {
+					q.Set(key, value)
+				}
 			}
 			if limit > 0 {
-				params = append(params, fmt.Sprintf("limit=%d", limit))
+				q.Set("limit", strconv.Itoa(limit))
 			}
 
 			path := "/v1/audit-log"
-			if len(params) > 0 {
-				path += "?" + strings.Join(params, "&")
+			if len(q) > 0 {
+				path += "?" + q.Encode()
 			}
 
 			body, _, err := c.Get(path)
@@ -90,7 +99,7 @@ func newAuditLogListCmd() *cobra.Command {
 				}
 				fmt.Println()
 			} else {
-				fmt.Println("Retention: unlimited (Custom plan)")
+				fmt.Println("Retention: per contract (Custom plan)")
 			}
 
 			if len(resp.Data) == 0 {
@@ -101,11 +110,17 @@ func newAuditLogListCmd() *cobra.Command {
 			rows := make([][]string, 0, len(resp.Data))
 			for _, e := range resp.Data {
 				actor := "—"
-				if e.ActorKeyPrefix != nil {
+				switch {
+				case e.ActorLabel != nil && *e.ActorLabel != "":
+					actor = *e.ActorLabel
+				case e.ActorKeyPrefix != nil:
 					actor = *e.ActorKeyPrefix
-					if e.AgentID != nil {
-						actor += " (" + *e.AgentID + ")"
-					}
+				}
+				if e.ActorType != nil {
+					actor += " [" + *e.ActorType + "]"
+				}
+				if e.AgentID != nil {
+					actor += " (" + *e.AgentID + ")"
 				}
 				resource := "—"
 				if e.Resource != nil && *e.Resource != "" {
@@ -141,6 +156,12 @@ func newAuditLogListCmd() *cobra.Command {
 	cmd.Flags().StringVar(&to, "to", "", "Upper bound (ISO-8601 UTC). Defaults to now.")
 	cmd.Flags().StringVar(&action, "action", "", "Filter by action (e.g. agent.create)")
 	cmd.Flags().StringVar(&actorKeyPrefix, "actor", "", "Filter by actor key prefix (first 20 chars)")
+	cmd.Flags().StringVar(&actorType, "actor-type", "", "Filter by who acted: session, org_key, agent_key or system")
+	cmd.Flags().StringVar(&actorID, "actor-id", "", "Filter by actor id (an API key id, or the org id for console sessions)")
+	cmd.Flags().StringVar(&requestID, "request-id", "", "Filter by the request id of the original call")
+	cmd.Flags().StringVar(&resource, "resource", "", "Filter by an entity id or id prefix the request touched (e.g. cal_)")
+	cmd.Flags().StringVar(&statusClass, "status-class", "", "Filter by response status class: 2xx, 3xx, 4xx or 5xx")
+	cmd.Flags().StringVar(&category, "category", "", "Filter by action category (e.g. keys, calendars, billing, security)")
 	cmd.Flags().StringVar(&cursor, "cursor", "", "Pagination cursor from a previous response")
 	cmd.Flags().IntVar(&limit, "limit", 50, "Page size (1-200)")
 	return cmd

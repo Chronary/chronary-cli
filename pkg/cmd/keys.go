@@ -3,6 +3,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/charmbracelet/huh"
 	"github.com/Chronary/chronary-cli/pkg/client"
@@ -64,11 +66,12 @@ func newKeysListCmd() *cobra.Command {
 					label,
 					key.KeyPrefix,
 					key.CreatedAt.Format("2006-01-02 15:04"),
+					formatKeyExpiry(key.ExpiresAt, time.Now()),
 				}
 			}
 
 			output.RenderTable(output.TableDef{
-				Headers: []string{"ID", "Agent", "Label", "Prefix", "Created"},
+				Headers: []string{"ID", "Agent", "Label", "Prefix", "Created", "Expires"},
 				Rows:    rows,
 			}, nc)
 
@@ -113,6 +116,14 @@ func newKeysCreateCmd() *cobra.Command {
 					}
 					payload["label"] = label
 				}
+
+				if cmd.Flags().Changed("expires-in") {
+					expiresIn, _ := cmd.Flags().GetString("expires-in")
+					if !validKeyExpiry(expiresIn) {
+						return fmt.Errorf("--expires-in must be one of %s", strings.Join(keyExpiryOptions, ", "))
+					}
+					payload["expires_in"] = expiresIn
+				}
 			}
 
 			body, _, err := c.Post("/v1/keys", payload)
@@ -125,6 +136,8 @@ func newKeysCreateCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
+			// Structured output carries the new key on purpose: agents parse
+			// it from stdout, and the API never returns it again.
 			if printStructured(cmd, created) {
 				return nil
 			}
@@ -135,11 +148,16 @@ func newKeysCreateCmd() *cobra.Command {
 			}
 
 			fmt.Printf("Created agent-scoped key %s for %s.\n", created.ID, created.AgentID)
+			// Intentional one-time display of a newly created key: the API
+			// returns the full key only in this response, so this stdout line
+			// is the caller's only copy. It is printed once, only on stdout, and
+			// never in debug output, logs or errors.
 			fmt.Printf("Key:      %s\n", created.Key)
 			fmt.Printf("Prefix:   %s\n", created.KeyPrefix)
 			fmt.Printf("Agent:    %s\n", created.AgentID)
 			fmt.Printf("Label:    %s\n", label)
 			fmt.Printf("Created:  %s\n", created.CreatedAt.Format("2006-01-02 15:04:05"))
+			fmt.Printf("Expires:  %s\n", formatKeyExpiry(created.ExpiresAt, time.Now()))
 			fmt.Println("Store this key now. It will not be shown in full again.")
 			return nil
 		},
@@ -147,6 +165,7 @@ func newKeysCreateCmd() *cobra.Command {
 
 	cmd.Flags().String("agent", "", "Agent ID to scope the key to")
 	cmd.Flags().String("label", "", "Optional label for the key")
+	cmd.Flags().String("expires-in", "", "When the key stops working: 30d, 60d, 90d, 180d or 365d (default: never)")
 
 	return cmd
 }
@@ -194,4 +213,27 @@ func newKeysDeleteCmd() *cobra.Command {
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt (alias for --force)")
 
 	return cmd
+}
+
+// keyExpiryOptions are the accepted --expires-in values (#593).
+var keyExpiryOptions = []string{"30d", "60d", "90d", "180d", "365d"}
+
+func validKeyExpiry(v string) bool {
+	for _, o := range keyExpiryOptions {
+		if v == o {
+			return true
+		}
+	}
+	return false
+}
+
+// formatKeyExpiry renders a key's expiry: "never", "expired", or the UTC time.
+func formatKeyExpiry(expiresAt *time.Time, now time.Time) string {
+	if expiresAt == nil {
+		return "never"
+	}
+	if !expiresAt.After(now) {
+		return "expired"
+	}
+	return expiresAt.UTC().Format("2006-01-02 15:04")
 }
