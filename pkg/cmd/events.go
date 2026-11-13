@@ -84,7 +84,7 @@ func newEventsListCmd() *cobra.Command {
 
 			var body []byte
 			if all {
-				items, total, err := fetchAllPages(c, path, 200)
+				items, total, err := fetchAllPages(c, path, pageSizeEvents)
 				if err != nil {
 					return formatError(err)
 				}
@@ -216,7 +216,7 @@ func newEventsListAllCmd() *cobra.Command {
 
 			var body []byte
 			if all {
-				items, total, err := fetchAllPages(c, path, 100)
+				items, total, err := fetchAllPages(c, path, pageSizeOrgEvents)
 				if err != nil {
 					return formatError(err)
 				}
@@ -306,8 +306,14 @@ func newEventsCreateCmd() *cobra.Command {
 				return fmt.Errorf("--calendar is required")
 			}
 
-			payload, _ := checkFileArg(args, 0)
+			payload, err := checkFileArg(args, 0)
+			if err != nil {
+				return err
+			}
 			if payload == nil {
+				if err := requireFlagsSet(cmd, "title", "start", "end"); err != nil {
+					return err
+				}
 				title, _ := cmd.Flags().GetString("title")
 				start, _ := cmd.Flags().GetString("start")
 				end, _ := cmd.Flags().GetString("end")
@@ -333,9 +339,8 @@ func newEventsCreateCmd() *cobra.Command {
 				if status != "" {
 					payload["status"] = status
 				}
-				if cmd.Flags().Changed("reminders") {
-					reminders, _ := cmd.Flags().GetIntSlice("reminders")
-					payload["reminders"] = reminders
+				if v, ok := remindersFlag(cmd, "reminders"); ok {
+					payload["reminders"] = v
 				}
 				if recurrenceRule != "" {
 					payload["recurrence_rule"] = recurrenceRule
@@ -376,21 +381,20 @@ func newEventsCreateCmd() *cobra.Command {
 	}
 
 	cmd.Flags().String("calendar", "", "Calendar ID (required)")
-	cmd.Flags().String("title", "", "Event title (required)")
-	cmd.Flags().String("start", "", "Start time, ISO 8601 (required)")
-	cmd.Flags().String("end", "", "End time, ISO 8601 (required)")
+	cmd.Flags().String("title", "", "Event title (required unless using @file)")
+	cmd.Flags().String("start", "", "Start time, ISO 8601 (required unless using @file)")
+	cmd.Flags().String("end", "", "End time, ISO 8601 (required unless using @file)")
 	cmd.Flags().String("description", "", "Event description")
 	cmd.Flags().Bool("all-day", false, "All-day event")
 	cmd.Flags().String("status", "", "Event status: confirmed, tentative, cancelled, or hold")
-	cmd.Flags().IntSlice("reminders", nil, "Reminder offsets in minutes before start (e.g. 10,1440). Max 5, each 1-40320. Omit to inherit calendar default; pass empty for none.")
+	addRemindersFlag(cmd, "reminders", "Reminder offsets in minutes before start (e.g. 10,1440). Max 5, each 1-40320. Omit to inherit calendar default; pass an empty value (--reminders=) for none.")
 	cmd.Flags().String("recurrence-rule", "", "Make the event recurring: RFC 5545 RRULE subset without the RRULE: prefix (e.g. FREQ=WEEKLY;BYDAY=MO,WE;COUNT=12). Not allowed with --status=hold.")
 	cmd.Flags().String("metadata", "", "Event metadata as JSON string")
 	cmd.Flags().String("hold-expires-at", "", "Required when --status=hold. ISO 8601 timestamp 30s-15min in the future.")
 	cmd.Flags().Int("hold-priority", 0, "Priority for hold conflict resolution (0-100). Higher-priority holds pre-empt lower.")
+	// --calendar is a path parameter, needed with @file too. Body fields
+	// are checked in RunE so @file / @- can supply them (#1993).
 	cmd.MarkFlagRequired("calendar")
-	cmd.MarkFlagRequired("title")
-	cmd.MarkFlagRequired("start")
-	cmd.MarkFlagRequired("end")
 
 	return cmd
 }
@@ -497,8 +501,7 @@ func newEventsUpdateCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetString("status")
 				payload["status"] = v
 			}
-			if cmd.Flags().Changed("reminders") {
-				v, _ := cmd.Flags().GetIntSlice("reminders")
+			if v, ok := remindersFlag(cmd, "reminders"); ok {
 				payload["reminders"] = v
 			}
 			if cmd.Flags().Changed("recurrence-rule") {
@@ -555,7 +558,7 @@ func newEventsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("end", "", "New end time (ISO 8601)")
 	cmd.Flags().String("description", "", "New description")
 	cmd.Flags().String("status", "", "New status: confirmed, tentative, or cancelled")
-	cmd.Flags().IntSlice("reminders", nil, "Reminder offsets in minutes before start (e.g. 10,1440). Max 5, each 1-40320. Pass empty to clear all reminders.")
+	addRemindersFlag(cmd, "reminders", "Reminder offsets in minutes before start (e.g. 10,1440). Max 5, each 1-40320. Pass an empty value (--reminders=) to clear all reminders.")
 	cmd.Flags().String("recurrence-rule", "", "Set or change the series rule (full-series edit): RFC 5545 RRULE subset without the RRULE: prefix. Pass an empty value (--recurrence-rule \"\") to clear the rule and make the event one-off.")
 	cmd.Flags().String("metadata", "", "New metadata as JSON string")
 

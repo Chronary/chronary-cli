@@ -93,7 +93,7 @@ func newSchedulingListCmd() *cobra.Command {
 
 			var body []byte
 			if all {
-				items, total, err := fetchAllPages(c, path, 200)
+				items, total, err := fetchAllPages(c, path, pageSizeProposals)
 				if err != nil {
 					return formatError(err)
 				}

@@ -118,7 +118,7 @@ func newICalListCmd() *cobra.Command {
 
 			var body []byte
 			if all {
-				items, total, err := fetchAllPages(c, path, 200)
+				items, total, err := fetchAllPages(c, path, pageSizeICalSubscriptions)
 				if err != nil {
 					return formatError(err)
 				}

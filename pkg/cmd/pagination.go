@@ -10,6 +10,21 @@ import (
 	"github.com/Chronary/chronary-cli/pkg/client"
 )
 
+// Page sizes for `--all` (fetchAllPages). Each is the server's maximum
+// `limit` for that endpoint, mirrored from the list query schema in
+// packages/shared/src/schemas. A page size above the cap gets a 400 from the
+// API (#1992); TestFetchAllPagesPageSizes pins every value.
+const (
+	pageSizeAgents            = 200 // ListAgentsQuerySchema (agents.ts)
+	pageSizeCalendars         = 200 // ListCalendarsQuerySchema (calendars.ts)
+	pageSizeEvents            = 200 // ListEventsQuerySchema (events.ts)
+	pageSizeOrgEvents         = 100 // ListOrgEventsQuerySchema (events.ts)
+	pageSizeBookingPages      = 200 // ListBookingPagesQuerySchema (booking-pages.ts)
+	pageSizeICalSubscriptions = 200 // ListICalSubscriptionsQuerySchema (ical-subscriptions.ts)
+	pageSizeProposals         = 200 // ListProposalsQuerySchema (scheduling.ts)
+	pageSizeWebhooks          = 100 // ListWebhooksQuerySchema (webhooks.ts)
+)
+
 // paginatedResponse is the generic shape of a list API response for pagination.
 type paginatedResponse struct {
 	Data   []json.RawMessage `json:"data"`

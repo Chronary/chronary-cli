@@ -65,7 +65,7 @@ func newAgentsListCmd() *cobra.Command {
 			var body []byte
 			if all {
 				path = appendQueryParams(path, params)
-				items, total, err := fetchAllPages(c, path, 200)
+				items, total, err := fetchAllPages(c, path, pageSizeAgents)
 				if err != nil {
 					return formatError(err)
 				}
@@ -152,8 +152,14 @@ func newAgentsCreateCmd() *cobra.Command {
 			}
 
 			// Check for @file input
-			payload, _ := checkFileArg(args, 0)
+			payload, err := checkFileArg(args, 0)
+			if err != nil {
+				return err
+			}
 			if payload == nil {
+				if err := requireFlagsSet(cmd, "name"); err != nil {
+					return err
+				}
 				name, _ := cmd.Flags().GetString("name")
 				agentType, _ := cmd.Flags().GetString("type")
 				description, _ := cmd.Flags().GetString("description")
@@ -195,11 +201,10 @@ func newAgentsCreateCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("name", "", "Agent name (required)")
+	cmd.Flags().String("name", "", "Agent name (required unless using @file)")
 	cmd.Flags().String("type", "ai", "Agent type: ai, human, or resource")
 	cmd.Flags().String("description", "", "Agent description")
 	cmd.Flags().String("metadata", "", "Agent metadata as JSON string")
-	cmd.MarkFlagRequired("name")
 
 	return cmd
 }

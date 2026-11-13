@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
+
+	"github.com/spf13/cobra"
 )
 
 // readBodyFromFile reads a JSON body from a file path prefixed with @.
@@ -47,4 +50,23 @@ func checkFileArg(args []string, startIdx int) (map[string]any, error) {
 		return nil, nil
 	}
 	return readBodyFromFile(args[startIdx])
+}
+
+// requireFlagsSet is cobra's required-flag check, run by hand. Commands that
+// take a body from @file or @- can't mark body fields with MarkFlagRequired,
+// because cobra checks those before RunE sees the @file arg (#1993). They call
+// this on the flags path instead. The error matches cobra's text and name
+// order; a flag counts as set when it was given, as in cobra.
+func requireFlagsSet(cmd *cobra.Command, names ...string) error {
+	var missing []string
+	for _, name := range names {
+		if !cmd.Flags().Changed(name) {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	sort.Strings(missing)
+	return fmt.Errorf("required flag(s) \"%s\" not set", strings.Join(missing, `", "`))
 }

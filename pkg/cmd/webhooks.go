@@ -62,7 +62,7 @@ func newWebhooksListCmd() *cobra.Command {
 
 			var body []byte
 			if all {
-				items, total, err := fetchAllPages(c, path, 200)
+				items, total, err := fetchAllPages(c, path, pageSizeWebhooks)
 				if err != nil {
 					return formatError(err)
 				}
@@ -141,8 +141,14 @@ func newWebhooksCreateCmd() *cobra.Command {
 				return err
 			}
 
-			payload, _ := checkFileArg(args, 0)
+			payload, err := checkFileArg(args, 0)
+			if err != nil {
+				return err
+			}
 			if payload == nil {
+				if err := requireFlagsSet(cmd, "url", "events"); err != nil {
+					return err
+				}
 				url, _ := cmd.Flags().GetString("url")
 				eventsStr, _ := cmd.Flags().GetString("events")
 
@@ -185,10 +191,8 @@ func newWebhooksCreateCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("url", "", "Webhook endpoint URL (required)")
-	cmd.Flags().String("events", "", "Comma-separated event types (required). Valid: "+strings.Join(validWebhookEvents, ", "))
-	cmd.MarkFlagRequired("url")
-	cmd.MarkFlagRequired("events")
+	cmd.Flags().String("url", "", "Webhook endpoint URL (required unless using @file)")
+	cmd.Flags().String("events", "", "Comma-separated event types (required unless using @file). Valid: "+strings.Join(validWebhookEvents, ", "))
 
 	return cmd
 }

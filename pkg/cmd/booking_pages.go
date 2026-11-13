@@ -51,7 +51,7 @@ func newBookingPagesListCmd() *cobra.Command {
 
 			var body []byte
 			if all {
-				items, total, err := fetchAllPages(c, path, 200)
+				items, total, err := fetchAllPages(c, path, pageSizeBookingPages)
 				if err != nil {
 					return formatError(err)
 				}
@@ -247,8 +247,14 @@ func newBookingPagesCreateCmd() *cobra.Command {
 				return err
 			}
 
-			payload, _ := checkFileArg(args, 0)
+			payload, err := checkFileArg(args, 0)
+			if err != nil {
+				return err
+			}
 			if payload == nil {
+				if err := requireFlagsSet(cmd, "calendar", "title"); err != nil {
+					return err
+				}
 				calendarID, _ := cmd.Flags().GetString("calendar")
 				title, _ := cmd.Flags().GetString("title")
 				p := map[string]any{
@@ -302,16 +308,14 @@ func newBookingPagesCreateCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("calendar", "", "Calendar ID the booking resolves to (required)")
-	cmd.Flags().String("title", "", "Booking page title (required)")
+	cmd.Flags().String("calendar", "", "Calendar ID the booking resolves to (required unless using @file)")
+	cmd.Flags().String("title", "", "Booking page title (required unless using @file)")
 	cmd.Flags().String("description", "", "Description shown to the booker")
 	cmd.Flags().Int("duration", 30, "Slot length in minutes")
 	cmd.Flags().Int("buffer", 0, "Buffer minutes before/after existing events")
 	cmd.Flags().Int("window-days", 14, "How far ahead bookings are allowed")
 	cmd.Flags().Int("min-notice", 0, "Minimum lead time (minutes) before a bookable slot")
 	cmd.Flags().String("timezone", "UTC", "IANA timezone for display + working hours")
-	cmd.MarkFlagRequired("calendar")
-	cmd.MarkFlagRequired("title")
 
 	return cmd
 }

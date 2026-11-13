@@ -277,7 +277,7 @@ func newCalendarsListCmd() *cobra.Command {
 
 			var body []byte
 			if all {
-				items, total, err := fetchAllPages(c, path, 200)
+				items, total, err := fetchAllPages(c, path, pageSizeCalendars)
 				if err != nil {
 					return formatError(err)
 				}
@@ -361,8 +361,14 @@ func newCalendarsCreateCmd() *cobra.Command {
 
 			agentID, _ := cmd.Flags().GetString("agent")
 
-			payload, _ := checkFileArg(args, 0)
+			payload, err := checkFileArg(args, 0)
+			if err != nil {
+				return err
+			}
 			if payload == nil {
+				if err := requireFlagsSet(cmd, "name"); err != nil {
+					return err
+				}
 				name, _ := cmd.Flags().GetString("name")
 				timezone, _ := cmd.Flags().GetString("timezone")
 				metadataStr, _ := cmd.Flags().GetString("metadata")
@@ -371,9 +377,8 @@ func newCalendarsCreateCmd() *cobra.Command {
 					"name":     name,
 					"timezone": timezone,
 				}
-				if cmd.Flags().Changed("default-reminders") {
-					defaultReminders, _ := cmd.Flags().GetIntSlice("default-reminders")
-					payload["default_reminders"] = defaultReminders
+				if v, ok := remindersFlag(cmd, "default-reminders"); ok {
+					payload["default_reminders"] = v
 				}
 				if metadataStr != "" {
 					var meta map[string]any
@@ -408,12 +413,11 @@ func newCalendarsCreateCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("name", "", "Calendar name (required)")
+	cmd.Flags().String("name", "", "Calendar name (required unless using @file)")
 	cmd.Flags().String("timezone", "UTC", "Calendar timezone (e.g., America/New_York)")
 	cmd.Flags().String("agent", "", "Agent ID to own the calendar")
-	cmd.Flags().IntSlice("default-reminders", nil, "Default reminder offsets in minutes before event start (e.g. 10,1440). Max 5, each 1-40320. Omit for system default ([10]).")
+	addRemindersFlag(cmd, "default-reminders", "Default reminder offsets in minutes before event start (e.g. 10,1440). Max 5, each 1-40320. Omit for system default ([10]); pass an empty value (--default-reminders=) for none.")
 	cmd.Flags().String("metadata", "", "Calendar metadata as JSON string")
-	cmd.MarkFlagRequired("name")
 
 	return cmd
 }
@@ -485,8 +489,7 @@ func newCalendarsUpdateCmd() *cobra.Command {
 				v, _ := cmd.Flags().GetString("timezone")
 				payload["timezone"] = v
 			}
-			if cmd.Flags().Changed("default-reminders") {
-				v, _ := cmd.Flags().GetIntSlice("default-reminders")
+			if v, ok := remindersFlag(cmd, "default-reminders"); ok {
 				payload["default_reminders"] = v
 			}
 			if cmd.Flags().Changed("metadata") {
@@ -523,7 +526,7 @@ func newCalendarsUpdateCmd() *cobra.Command {
 
 	cmd.Flags().String("name", "", "New calendar name")
 	cmd.Flags().String("timezone", "", "New timezone")
-	cmd.Flags().IntSlice("default-reminders", nil, "Default reminder offsets in minutes before event start (e.g. 10,1440). Max 5, each 1-40320. Pass empty to clear.")
+	addRemindersFlag(cmd, "default-reminders", "Default reminder offsets in minutes before event start (e.g. 10,1440). Max 5, each 1-40320. Pass an empty value (--default-reminders=) to clear.")
 	cmd.Flags().String("metadata", "", "New metadata as JSON string")
 
 	return cmd

@@ -2,7 +2,13 @@
 
 All notable changes to `chronary-cli` will be documented in this file starting with the soft-launch release.
 
-## 0.10.0 — Unreleased
+## 0.10.1 — Unreleased
+
+- `webhooks list --all` works again: it asked for 200 webhooks a page and the API allows at most 100. Every `--all` page size is now pinned to its endpoint's limit by a test (#1992).
+- `agents create`, `calendars create`, `booking-pages create`, `events create` and `webhooks create` accept the body from `@file` or `@-` without the body flags. Without `@file` they still say which flags are missing. `events create` still needs `--calendar`. A missing or invalid `@file` now fails with the read or parse error (#1993).
+- `--reminders=` (events create and update) and `--default-reminders=` (calendars create and update) send an empty list to set no reminders, as the help text said; they failed with `strconv.Atoi` before. A value that is not a whole number fails with a clear error (#1994).
+
+## 0.10.0 — 2026-11-12
 
 - A 429 `quota_exceeded` (a monthly plan limit) is no longer retried: the command fails at once with the quota error instead of waiting and asking again. A rate-limit 429 still retries (#1936).
 - `billing` shows a scheduled plan switch (`Switching to`) and plan error hints name the plan the upgrade link leads to (`upgrade_plan`). Replay and secret rotation help text says Developer or Pro. `--output json` carries `annual_price` and the `pending_plan*` fields (#1911).
