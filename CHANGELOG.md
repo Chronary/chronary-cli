@@ -2,8 +2,9 @@
 
 All notable changes to `chronary-cli` will be documented in this file starting with the soft-launch release.
 
-## Unreleased
+## 0.10.0 — Unreleased
 
+- A 429 `quota_exceeded` (a monthly plan limit) is no longer retried: the command fails at once with the quota error instead of waiting and asking again. A rate-limit 429 still retries (#1936).
 - `billing` shows a scheduled plan switch (`Switching to`) and plan error hints name the plan the upgrade link leads to (`upgrade_plan`). Replay and secret rotation help text says Developer or Pro. `--output json` carries `annual_price` and the `pending_plan*` fields (#1911).
 
 ## 0.9.1 — 2026-11-09

@@ -124,7 +124,8 @@ func (c *Client) do(method, path string, body io.Reader) ([]byte, int, error) {
 			return nil, status, err
 		}
 
-		if isRetryableStatus(status) && method == "GET" && attempt < attempts-1 {
+		// A monthly plan limit (429 quota_exceeded) is never retried (#1936).
+		if isRetryableStatus(status) && method == "GET" && attempt < attempts-1 && !isQuotaExceeded(status, respBody) {
 			retrySleep(retryDelay(attempt+1, retryAfter))
 			continue
 		}
@@ -199,6 +200,16 @@ func (c *Client) responseError(status int, respBody []byte) ([]byte, int, error)
 
 func isRetryableStatus(status int) bool {
 	return status == http.StatusRequestTimeout || status == http.StatusTooManyRequests || status >= 500
+}
+
+// isQuotaExceeded reports a 429 whose body is a monthly plan limit
+// (quota_exceeded): retrying cannot succeed until the limit resets.
+func isQuotaExceeded(status int, body []byte) bool {
+	if status != http.StatusTooManyRequests {
+		return false
+	}
+	apiErr := parseAPIError(&http.Response{StatusCode: status}, body)
+	return apiErr != nil && apiErr.Type == "quota_exceeded"
 }
 
 func retryDelay(attempt int, retryAfter string) time.Duration {

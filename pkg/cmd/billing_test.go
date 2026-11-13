@@ -27,7 +27,7 @@ func TestBillingStatusCommand(t *testing.T) {
 		assert.Equal(t, "/v1/billing", r.URL.Path)
 		assert.Equal(t, http.MethodGet, r.Method)
 		json.NewEncoder(w).Encode(map[string]any{
-			"plan": "free-agent", "plan_source": nil, "plan_expires_at": nil, "status": nil,
+			"plan": "free", "plan_source": nil, "plan_expires_at": nil, "status": nil,
 			"interval": nil, "current_period_end": nil, "cancel_at": nil, "cancel_at_period_end": false,
 			"renews_at": nil, "price": nil, "has_billing_account": false, "self_serve_upgrade": true,
 			"upgrade_options": []map[string]any{
@@ -45,7 +45,7 @@ func TestBillingStatusCommand(t *testing.T) {
 		rootCmd.SetArgs([]string{"billing", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--no-color"})
 		require.NoError(t, rootCmd.Execute())
 	})
-	assert.Contains(t, out, "free-agent")
+	assert.Contains(t, out, "free")
 	assert.Contains(t, out, "29.00 USD")
 	assert.Contains(t, out, "saves 58.00 USD vs monthly")
 	assert.Contains(t, out, "Upgrade: https://console.test/settings/billing")

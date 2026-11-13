@@ -20,16 +20,16 @@ func TestUsageCommand(t *testing.T) {
 			"period_start":         "2026-04-01T00:00:00Z",
 			"period_end":           "2026-05-01T00:00:00Z",
 			"plan":                 "free",
-			"agents":               map[string]int{"used": 2, "limit": 5},
-			"calendars":            map[string]int{"used": 3, "limit": 10},
-			"events":               map[string]int{"used": 15, "limit": 500},
+			"agents":               map[string]int{"used": 1, "limit": 1},
+			"calendars":            map[string]int{"used": 1, "limit": 1},
+			"events":               map[string]int{"used": 15, "limit": 100},
 			"api_calls":            map[string]int{"used": 42, "limit": 1000},
-			"webhooks":             map[string]int{"used": 5, "limit": 100},
-			"webhook_endpoints":    map[string]int{"used": 1, "limit": 3},
-			"availability_queries": map[string]int{"used": 10, "limit": 200},
-			"ical_subscriptions":   map[string]int{"used": 1, "limit": 5},
-			"proposals":            map[string]int{"used": 4, "limit": 500},
-			"recurring_events":     map[string]int{"used": 2, "limit": 10},
+			"webhooks":             map[string]int{"used": 5, "limit": 1000},
+			"webhook_endpoints":    map[string]int{"used": 1, "limit": 1},
+			"availability_queries": map[string]int{"used": 10, "limit": 100},
+			"ical_subscriptions":   map[string]int{"used": 0, "limit": 0},
+			"proposals":            map[string]int{"used": 0, "limit": 0},
+			"recurring_events":     map[string]int{"used": 1, "limit": 1},
 			"scoped_keys":          map[string]any{"count": 2, "limit": 50},
 		})
 	}))
@@ -47,11 +47,11 @@ func TestUsageCommand(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(out), &usage))
 
 	assert.Equal(t, 1, usage.WebhookEndpoints.Used)
-	assert.Equal(t, 3, usage.WebhookEndpoints.Limit)
-	assert.Equal(t, 4, usage.Proposals.Used)
-	assert.Equal(t, 500, usage.Proposals.Limit)
-	assert.Equal(t, 2, usage.RecurringEvents.Used)
-	assert.Equal(t, 10, usage.RecurringEvents.Limit)
+	assert.Equal(t, 1, usage.WebhookEndpoints.Limit)
+	assert.Equal(t, 0, usage.Proposals.Used)
+	assert.Equal(t, 0, usage.Proposals.Limit)
+	assert.Equal(t, 1, usage.RecurringEvents.Used)
+	assert.Equal(t, 1, usage.RecurringEvents.Limit)
 	assert.Equal(t, 2, usage.ScopedKeys.Count)
 	require.NotNil(t, usage.ScopedKeys.Limit)
 	assert.Equal(t, 50, *usage.ScopedKeys.Limit)
@@ -103,7 +103,7 @@ func TestUsageHistoryCommand(t *testing.T) {
 		json.NewEncoder(w).Encode(map[string]any{
 			"plan":   "free",
 			"months": 2,
-			"limits": map[string]any{"api_calls": 50000, "events": 2500, "webhook_deliveries": 5000, "availability_queries": 10000, "proposals": nil},
+			"limits": map[string]any{"api_calls": 1000, "events": 100, "webhook_deliveries": 1000, "availability_queries": 100, "proposals": nil},
 			"data": []map[string]any{
 				{"period": "2026-09", "period_start": "2026-09-01T00:00:00.000Z", "period_end": "2026-09-30T23:59:59.000Z", "is_current": false, "metrics": map[string]int{"api_calls": 41220}},
 				{"period": "2026-10", "period_start": "2026-10-01T00:00:00.000Z", "period_end": "2026-10-31T23:59:59.000Z", "is_current": true, "metrics": map[string]int{"api_calls": 12480}},
