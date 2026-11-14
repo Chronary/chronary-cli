@@ -36,7 +36,8 @@ type paginatedResponse struct {
 // fetchAllPages fetches all pages from a paginated endpoint and returns the
 // combined raw JSON items. The basePath should not include limit/offset params.
 func fetchAllPages(c *client.Client, basePath string, limit int) ([]json.RawMessage, int, error) {
-	var allData []json.RawMessage
+	// Non-nil, so an empty result marshals as [] rather than null (#2095).
+	allData := []json.RawMessage{}
 	offset := 0
 	total := 0
 
@@ -68,12 +69,23 @@ func fetchAllPages(c *client.Client, basePath string, limit int) ([]json.RawMess
 	return allData, total, nil
 }
 
-// rewrapList reconstructs a ListResponse JSON from collected raw items.
-func rewrapList(items []json.RawMessage, total int) ([]byte, error) {
+// rewrapList reconstructs a ListResponse JSON from collected raw items: one
+// page holding everything, so `limit` is the item count. An empty result
+// keeps the list contract every other response follows (#2095): `data` is
+// [] (never null) and `limit` is the page size that was asked for (the
+// endpoint's cap, always >= 1), not 0.
+func rewrapList(items []json.RawMessage, total, pageSize int) ([]byte, error) {
+	if items == nil {
+		items = []json.RawMessage{}
+	}
+	limit := len(items)
+	if limit == 0 {
+		limit = pageSize
+	}
 	wrapped := map[string]any{
 		"data":   items,
 		"total":  total,
-		"limit":  total,
+		"limit":  limit,
 		"offset": 0,
 	}
 	return json.Marshal(wrapped)

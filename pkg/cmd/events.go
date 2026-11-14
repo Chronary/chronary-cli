@@ -88,7 +88,7 @@ func newEventsListCmd() *cobra.Command {
 				if err != nil {
 					return formatError(err)
 				}
-				body, err = rewrapList(items, total)
+				body, err = rewrapList(items, total, pageSizeEvents)
 				if err != nil {
 					return fmt.Errorf("building response: %w", err)
 				}
@@ -220,7 +220,7 @@ func newEventsListAllCmd() *cobra.Command {
 				if err != nil {
 					return formatError(err)
 				}
-				body, err = rewrapList(items, total)
+				body, err = rewrapList(items, total, pageSizeOrgEvents)
 				if err != nil {
 					return fmt.Errorf("building response: %w", err)
 				}

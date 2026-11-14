@@ -69,7 +69,7 @@ func newAgentsListCmd() *cobra.Command {
 				if err != nil {
 					return formatError(err)
 				}
-				body, err = rewrapList(items, total)
+				body, err = rewrapList(items, total, pageSizeAgents)
 				if err != nil {
 					return fmt.Errorf("building response: %w", err)
 				}

@@ -2,7 +2,11 @@
 
 All notable changes to `chronary-cli` will be documented in this file starting with the soft-launch release.
 
-## 0.10.1 — Unreleased
+## 0.10.2 — Unreleased
+
+- An empty `--all` list (`agents`, `calendars`, `events list` and `list-all`, `booking-pages`, `ical`, `scheduling`, `webhooks`) prints `"data": []` and the page size as `limit`, as every other list response does. It printed `"data": null` and `"limit": 0` (#2095).
+
+## 0.10.1 — 2026-11-13
 
 - `webhooks list --all` works again: it asked for 200 webhooks a page and the API allows at most 100. Every `--all` page size is now pinned to its endpoint's limit by a test (#1992).
 - `agents create`, `calendars create`, `booking-pages create`, `events create` and `webhooks create` accept the body from `@file` or `@-` without the body flags. Without `@file` they still say which flags are missing. `events create` still needs `--calendar`. A missing or invalid `@file` now fails with the read or parse error (#1993).

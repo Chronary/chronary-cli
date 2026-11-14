@@ -281,7 +281,7 @@ func newCalendarsListCmd() *cobra.Command {
 				if err != nil {
 					return formatError(err)
 				}
-				body, err = rewrapList(items, total)
+				body, err = rewrapList(items, total, pageSizeCalendars)
 				if err != nil {
 					return fmt.Errorf("building response: %w", err)
 				}

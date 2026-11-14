@@ -66,7 +66,7 @@ func newWebhooksListCmd() *cobra.Command {
 				if err != nil {
 					return formatError(err)
 				}
-				body, err = rewrapList(items, total)
+				body, err = rewrapList(items, total, pageSizeWebhooks)
 				if err != nil {
 					return fmt.Errorf("building response: %w", err)
 				}
