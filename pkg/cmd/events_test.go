@@ -281,6 +281,141 @@ func TestEventsUpdateClearRecurrenceRuleCommand(t *testing.T) {
 	require.NoError(t, rootCmd.Execute())
 }
 
+func TestEventsCreateTimezoneCommand(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		assert.Equal(t, "America/Los_Angeles", body["timezone"])
+		assert.Equal(t, "FREQ=WEEKLY;BYDAY=TU", body["recurrence_rule"])
+		w.WriteHeader(201)
+		evt := newTestEvent("evt_tz1", "Standup", "confirmed")
+		tz := "America/Los_Angeles"
+		evt.Timezone = &tz
+		json.NewEncoder(w).Encode(evt)
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{
+		"events", "create", "--calendar", "cal_1", "--title", "Standup",
+		"--start", "2026-03-10T16:00:00Z", "--end", "2026-03-10T16:30:00Z",
+		"--recurrence-rule", "FREQ=WEEKLY;BYDAY=TU", "--timezone", "America/Los_Angeles",
+		"--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json",
+	})
+	require.NoError(t, rootCmd.Execute())
+}
+
+func TestEventsCreateOmitsTimezoneByDefault(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		_, present := body["timezone"]
+		assert.False(t, present, "timezone must be omitted when --timezone is not set")
+		w.WriteHeader(201)
+		json.NewEncoder(w).Encode(newTestEvent("evt_1", "Standup", "confirmed"))
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{
+		"events", "create", "--calendar", "cal_1", "--title", "Standup",
+		"--start", "2026-03-10T16:00:00Z", "--end", "2026-03-10T16:30:00Z",
+		"--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json",
+	})
+	require.NoError(t, rootCmd.Execute())
+}
+
+func TestEventsUpdateMigrationPatchCommand(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "PATCH", r.Method)
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		assert.Equal(t, map[string]any{
+			"timezone":        "America/Los_Angeles",
+			"recurrence_rule": "FREQ=WEEKLY;BYDAY=TU",
+		}, body)
+		evt := newTestEvent("evt_rec1", "Standup", "confirmed")
+		evt.DroppedExdates = []string{"2026-03-18T00:00:00.000Z"}
+		json.NewEncoder(w).Encode(evt)
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{
+		"events", "update", "evt_rec1",
+		"--timezone", "America/Los_Angeles", "--recurrence-rule", "FREQ=WEEKLY;BYDAY=TU",
+		"--api-key", "chr_sk_xxx", "--base-url", srv.URL,
+	})
+	out := captureStdout(t, func() { require.NoError(t, rootCmd.Execute()) })
+	assert.Contains(t, out, "Updated event evt_rec1")
+	assert.Contains(t, out, "1 cancelled occurrence(s) no longer fall on the series and were dropped")
+	assert.Contains(t, out, "2026-03-18T00:00:00.000Z")
+	assert.Contains(t, out, "chronary events delete evt_rec1 --occurrence-start <start>")
+}
+
+func TestEventsUpdateNoDroppedExdatesPrintsNoHint(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(newTestEvent("evt_rec1", "Standup", "confirmed"))
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{"events", "update", "evt_rec1", "--title", "Standup", "--api-key", "chr_sk_xxx", "--base-url", srv.URL})
+	out := captureStdout(t, func() { require.NoError(t, rootCmd.Execute()) })
+	assert.Contains(t, out, "Updated event evt_rec1")
+	assert.NotContains(t, out, "dropped")
+}
+
+func TestEventsUpdateDroppedExdatesJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		evt := newTestEvent("evt_rec1", "Standup", "confirmed")
+		evt.DroppedExdates = []string{"2026-03-18T00:00:00.000Z"}
+		json.NewEncoder(w).Encode(evt)
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{"events", "update", "evt_rec1", "--start", "2026-03-10T17:00:00Z", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
+	out := captureStdout(t, func() { require.NoError(t, rootCmd.Execute()) })
+	assert.Contains(t, out, `"droppedExdates"`)
+	assert.NotContains(t, out, "Re-cancel")
+}
+
+func TestEventsUpdateClearTimezoneCommand(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		// --timezone "" must send an explicit JSON null (back to UTC).
+		v, present := body["timezone"]
+		assert.True(t, present, "expected timezone key in payload")
+		assert.Nil(t, v)
+		json.NewEncoder(w).Encode(newTestEvent("evt_rec1", "Standup", "confirmed"))
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{"events", "update", "evt_rec1", "--timezone", "", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
+	require.NoError(t, rootCmd.Execute())
+}
+
+func TestEventsGetShowsRecurrenceAndTimezone(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		evt := newTestEvent("evt_rec1", "Standup", "confirmed")
+		rule := "FREQ=WEEKLY;BYDAY=TU"
+		tz := "America/Los_Angeles"
+		evt.RecurrenceRule = &rule
+		evt.Timezone = &tz
+		json.NewEncoder(w).Encode(evt)
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{"events", "get", "evt_rec1", "--api-key", "chr_sk_xxx", "--base-url", srv.URL})
+	out := captureStdout(t, func() { require.NoError(t, rootCmd.Execute()) })
+	assert.Contains(t, out, "Recurrence:  FREQ=WEEKLY;BYDAY=TU")
+	assert.Contains(t, out, "Timezone:    America/Los_Angeles")
+}
+
 func TestEventsListExpandCommand(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v1/calendars/cal_1/events", r.URL.Path)

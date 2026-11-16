@@ -118,10 +118,22 @@ type Event struct {
 	RecurrenceExdates []string `json:"recurrenceExdates"`
 	// Present only on expanded instances (expand=true): the series master id
 	// and the occurrence start the instance was generated for.
-	RecurringEventID  string    `json:"recurringEventId,omitempty"`
-	OriginalStartTime string    `json:"originalStartTime,omitempty"`
-	CreatedAt         time.Time `json:"createdAt"`
-	UpdatedAt         time.Time `json:"updatedAt"`
+	RecurringEventID  string `json:"recurringEventId,omitempty"`
+	OriginalStartTime string `json:"originalStartTime,omitempty"`
+	// Timezone is the IANA zone a recurring series repeats in; null = UTC.
+	Timezone *string `json:"timezone"`
+	// Present only on expanded instances: the start as local wall time in
+	// the series zone (no offset), the UTC offset at that time, and "gap"
+	// when a DST spring-forward moved the start.
+	StartLocal  string  `json:"startLocal,omitempty"`
+	UTCOffset   string  `json:"utcOffset,omitempty"`
+	DSTAdjusted *string `json:"dstAdjusted,omitempty"`
+	// DroppedExdates is present only on an update that moved a recurring
+	// series: cancelled occurrences with no occurrence on their local date in
+	// the new series. They were removed.
+	DroppedExdates []string  `json:"droppedExdates,omitempty"`
+	CreatedAt      time.Time `json:"createdAt"`
+	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
 // Webhook represents a Chronary webhook subscription.

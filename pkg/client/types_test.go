@@ -117,3 +117,53 @@ func TestAgentPreservesOrgID(t *testing.T) {
 	require.Equal(t, "org_1", agent.OrgID)
 	require.False(t, agent.CreatedAt.IsZero())
 }
+
+// #2276 / #2277: the time-zone, expanded-instance and dropped-exdate fields
+// must survive into `-o json`.
+func TestEventPreservesTimezoneFields(t *testing.T) {
+	const body = `{
+		"id": "evt_1",
+		"calendarId": "cal_1",
+		"title": "Standup",
+		"startTime": "2026-03-08T10:30:00Z",
+		"endTime": "2026-03-08T11:00:00Z",
+		"timezone": "America/Los_Angeles",
+		"startLocal": "2026-03-08T03:30:00",
+		"utcOffset": "-07:00",
+		"dstAdjusted": "gap",
+		"droppedExdates": ["2026-03-17T16:00:00.000Z"],
+		"createdAt": "2026-03-01T00:00:00Z",
+		"updatedAt": "2026-03-01T00:00:00Z"
+	}`
+	var evt Event
+	require.NoError(t, json.Unmarshal([]byte(body), &evt))
+	require.NotNil(t, evt.Timezone)
+	require.Equal(t, "America/Los_Angeles", *evt.Timezone)
+	require.Equal(t, "2026-03-08T03:30:00", evt.StartLocal)
+	require.Equal(t, "-07:00", evt.UTCOffset)
+	require.NotNil(t, evt.DSTAdjusted)
+	require.Equal(t, "gap", *evt.DSTAdjusted)
+	require.Equal(t, []string{"2026-03-17T16:00:00.000Z"}, evt.DroppedExdates)
+
+	out, err := json.Marshal(evt)
+	require.NoError(t, err)
+	var round map[string]any
+	require.NoError(t, json.Unmarshal(out, &round))
+	for _, k := range []string{"timezone", "startLocal", "utcOffset", "dstAdjusted", "droppedExdates"} {
+		require.Contains(t, round, k)
+	}
+
+	// A one-off event: timezone stays an explicit null; the expansion and
+	// update-only fields are absent.
+	var plain Event
+	require.NoError(t, json.Unmarshal([]byte(`{"id":"evt_2","timezone":null}`), &plain))
+	out, err = json.Marshal(plain)
+	require.NoError(t, err)
+	round = map[string]any{}
+	require.NoError(t, json.Unmarshal(out, &round))
+	require.Contains(t, round, "timezone")
+	require.Nil(t, round["timezone"])
+	for _, k := range []string{"startLocal", "utcOffset", "dstAdjusted", "droppedExdates"} {
+		require.NotContains(t, round, k)
+	}
+}

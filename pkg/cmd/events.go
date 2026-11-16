@@ -345,6 +345,9 @@ func newEventsCreateCmd() *cobra.Command {
 				if recurrenceRule != "" {
 					payload["recurrence_rule"] = recurrenceRule
 				}
+				if tz, _ := cmd.Flags().GetString("timezone"); tz != "" {
+					payload["timezone"] = tz
+				}
 				if metadataStr != "" {
 					var meta map[string]any
 					if err := json.Unmarshal([]byte(metadataStr), &meta); err != nil {
@@ -389,6 +392,7 @@ func newEventsCreateCmd() *cobra.Command {
 	cmd.Flags().String("status", "", "Event status: confirmed, tentative, cancelled, or hold")
 	addRemindersFlag(cmd, "reminders", "Reminder offsets in minutes before start (e.g. 10,1440). Max 5, each 1-40320. Omit to inherit calendar default; pass an empty value (--reminders=) for none.")
 	cmd.Flags().String("recurrence-rule", "", "Make the event recurring: RFC 5545 RRULE subset without the RRULE: prefix (e.g. FREQ=WEEKLY;BYDAY=MO,WE;COUNT=12). Not allowed with --status=hold.")
+	cmd.Flags().String("timezone", "", "IANA time zone the series repeats in (e.g. America/Los_Angeles): BYDAY, the start match and a date-only UNTIL use local wall time, across DST changes. Omit for UTC.")
 	cmd.Flags().String("metadata", "", "Event metadata as JSON string")
 	cmd.Flags().String("hold-expires-at", "", "Required when --status=hold. ISO 8601 timestamp 30s-15min in the future.")
 	cmd.Flags().Int("hold-priority", 0, "Priority for hold conflict resolution (0-100). Higher-priority holds pre-empt lower.")
@@ -449,6 +453,12 @@ func newEventsGetCmd() *cobra.Command {
 			fmt.Printf("Status:      %s\n", output.ColorStatus(evt.Status, nc))
 			fmt.Printf("All Day:     %v\n", evt.AllDay)
 			fmt.Printf("Source:      %s\n", evt.Source)
+			if evt.RecurrenceRule != nil {
+				fmt.Printf("Recurrence:  %s\n", *evt.RecurrenceRule)
+			}
+			if evt.Timezone != nil {
+				fmt.Printf("Timezone:    %s\n", *evt.Timezone)
+			}
 			if desc != "" {
 				fmt.Printf("Description: %s\n", desc)
 			}
@@ -514,6 +524,16 @@ func newEventsUpdateCmd() *cobra.Command {
 					payload["recurrence_rule"] = v
 				}
 			}
+			if cmd.Flags().Changed("timezone") {
+				v, _ := cmd.Flags().GetString("timezone")
+				if v == "" {
+					// Explicit empty value clears the zone (JSON null): the
+					// series returns to UTC.
+					payload["timezone"] = nil
+				} else {
+					payload["timezone"] = v
+				}
+			}
 			if cmd.Flags().Changed("metadata") {
 				v, _ := cmd.Flags().GetString("metadata")
 				var meta map[string]any
@@ -524,7 +544,7 @@ func newEventsUpdateCmd() *cobra.Command {
 			}
 
 			if len(payload) == 0 {
-				return fmt.Errorf("at least one flag required: --title, --start, --end, --status, --reminders, --recurrence-rule, --description, --metadata")
+				return fmt.Errorf("at least one flag required: --title, --start, --end, --status, --reminders, --recurrence-rule, --timezone, --description, --metadata")
 			}
 
 			var path string
@@ -548,6 +568,7 @@ func newEventsUpdateCmd() *cobra.Command {
 			}
 
 			fmt.Printf("Updated event %s (%s)\n", evt.ID, evt.Title)
+			printDroppedExdates(evt)
 			return nil
 		},
 	}
@@ -560,6 +581,7 @@ func newEventsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("status", "", "New status: confirmed, tentative, or cancelled")
 	addRemindersFlag(cmd, "reminders", "Reminder offsets in minutes before start (e.g. 10,1440). Max 5, each 1-40320. Pass an empty value (--reminders=) to clear all reminders.")
 	cmd.Flags().String("recurrence-rule", "", "Set or change the series rule (full-series edit): RFC 5545 RRULE subset without the RRULE: prefix. Pass an empty value (--recurrence-rule \"\") to clear the rule and make the event one-off.")
+	cmd.Flags().String("timezone", "", "Set or change the IANA time zone the series repeats in (e.g. America/Los_Angeles). Pass an empty value (--timezone \"\") to return the series to UTC. Cancelled occurrences move with the series; any that no longer fit are listed as dropped.")
 	cmd.Flags().String("metadata", "", "New metadata as JSON string")
 
 	return cmd
@@ -722,4 +744,17 @@ func newEventsReleaseCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// printDroppedExdates lists the cancelled occurrences that an update moving a
+// recurring series could not keep (#2277), with the command to re-cancel.
+func printDroppedExdates(evt client.Event) {
+	if len(evt.DroppedExdates) == 0 {
+		return
+	}
+	fmt.Printf("\n%d cancelled occurrence(s) no longer fall on the series and were dropped:\n", len(evt.DroppedExdates))
+	for _, d := range evt.DroppedExdates {
+		fmt.Printf("  %s\n", d)
+	}
+	fmt.Printf("Re-cancel the right occurrence with: chronary events delete %s --occurrence-start <start>\n", evt.ID)
 }

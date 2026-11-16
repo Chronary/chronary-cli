@@ -2,7 +2,13 @@
 
 All notable changes to `chronary-cli` will be documented in this file starting with the soft-launch release.
 
-## 0.10.2 — Unreleased
+## 0.11.0 — 2026-11-16
+
+- `events create` and `events update` take `--timezone`: a recurring series repeats on local wall time in an IANA zone (e.g. `America/Los_Angeles`), across DST changes. On update, `--timezone ""` returns the series to UTC. Send it with `--recurrence-rule` to move an existing series in one call (#2276).
+- An `events update` that moves a recurring series (changes `--start`, `--recurrence-rule` or `--timezone`) keeps each cancelled occurrence on its local date. Any that no longer fit are listed after the update with the command to re-cancel them; `--output json` carries them as `droppedExdates` (#2277).
+- `events get` shows the recurrence rule and time zone when set; `--output json` for events carries `timezone` and, on expanded instances, `startLocal`, `utcOffset` and `dstAdjusted`.
+
+## 0.10.2 — 2026-11-14
 
 - An empty `--all` list (`agents`, `calendars`, `events list` and `list-all`, `booking-pages`, `ical`, `scheduling`, `webhooks`) prints `"data": []` and the page size as `limit`, as every other list response does. It printed `"data": null` and `"limit": 0` (#2095).
 
