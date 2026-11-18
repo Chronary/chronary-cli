@@ -2,6 +2,11 @@
 
 All notable changes to `chronary-cli` will be documented in this file starting with the soft-launch release.
 
+## 0.12.0 — 2026-11-17
+
+- `chronary usage` shows a Calendar Connections row (live Google / Microsoft connections vs. the plan cap); `--output json` carries `calendar_connections` (#2397).
+- `chronary audit-log --help` lists Developer's 30-day retention next to Free (3 days) and Pro (90 days) (#2397).
+
 ## 0.11.0 — 2026-11-16
 
 - `events create` and `events update` take `--timezone`: a recurring series repeats on local wall time in an IANA zone (e.g. `America/Los_Angeles`), across DST changes. On update, `--timezone ""` returns the series to UTC. Send it with `--recurrence-rule` to move an existing series in one call (#2276).

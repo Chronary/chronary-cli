@@ -120,6 +120,7 @@ func newUsageBaseCmd() *cobra.Command {
 				usageRow("Proposals", usage.Proposals, nc),
 				usageRow("Recurring Events", usage.RecurringEvents, nc),
 				usageRow("Booking Pages", usage.BookingPages, nc),
+				usageRow("Calendar Connections", usage.CalendarConnections, nc),
 			}
 
 			output.RenderTable(output.TableDef{

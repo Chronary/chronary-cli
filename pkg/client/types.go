@@ -343,6 +343,7 @@ type UsageResponse struct {
 	Proposals            UsageCounter              `json:"proposals"`
 	RecurringEvents      UsageCounter              `json:"recurring_events"`
 	BookingPages         UsageCounter              `json:"booking_pages"`
+	CalendarConnections  UsageCounter              `json:"calendar_connections"`
 	ScopedKeys           ScopedKeysUsage           `json:"scoped_keys"`
 	Holds                HoldsUsage                `json:"holds"`
 	CrossCalendarQueries CrossCalendarQueriesUsage `json:"cross_calendar_queries"`

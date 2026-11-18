@@ -15,7 +15,7 @@ func newAuditLogCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "audit-log",
 		Short: "Query the organization audit log",
-		Long:  "List mutating API operations and auth lifecycle events for your organization, clamped to the per-tier retention window (Free: 3 days, Pro: 90 days, Custom: per contract).",
+		Long:  "List mutating API operations and auth lifecycle events for your organization, clamped to the per-tier retention window (Free: 3 days, Developer: 30 days, Pro: 90 days, Custom: per contract).",
 	}
 	cmd.AddCommand(newAuditLogListCmd())
 	return cmd
