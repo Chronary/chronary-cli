@@ -30,7 +30,7 @@ type Client struct {
 
 var (
 	chronaryKeyPattern = regexp.MustCompile(`chr_(?:sk|ak)_(?:live_)?[A-Za-z0-9_-]+`)
-	jsonSecretPattern  = regexp.MustCompile(`"((?:api_)?key|secret|revocation_token|ical_token|ical_feed_url)"\s*:\s*"[^"]*"`)
+	jsonSecretPattern  = regexp.MustCompile(`"((?:api_)?key|secret|revocation_token|ical_token|ical_feed_url|claim_url)"\s*:\s*"[^"]*"`) // claim_url: a claimable org's one-time claim token (#2335)
 	icalURLPattern     = regexp.MustCompile(`https://[^"\s]+/ical/[^"\s]+\.ics`)
 	retrySleep         = time.Sleep
 )

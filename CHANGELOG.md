@@ -2,6 +2,10 @@
 
 All notable changes to `chronary-cli` will be documented in this file starting with the soft-launch release.
 
+## 0.13.0 — 2026-11-17
+
+- `chronary auth signup --anonymous --agent-name <name> --tos-version <v>` signs up without an email (`POST /v1/agent/sign-up/anonymous`): a claimable org whose key works at once at Sandbox limits. It prints the key, a one-time claim URL for the person who should own the calendar, and the expiry (72 hours; unclaimed, the org and its data are deleted). `--output json` carries `claim_url` and `expires_at`. `--email` is no longer marked required, since `--anonymous` takes none; the email sign-up still refuses a missing or malformed address. The `--debug` dump redacts `claim_url` (#2335).
+
 ## 0.12.0 — 2026-11-17
 
 - `chronary usage` shows a Calendar Connections row (live Google / Microsoft connections vs. the plan cap); `--output json` carries `calendar_connections` (#2397).

@@ -228,10 +228,11 @@ func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 }
 
 func TestRedactDebugBody(t *testing.T) {
-	body := []byte(`{"api_key":"chr_sk_SECRET","secret":"whsec_plain","ical_feed_url":"https://api.chronary.ai/ical/tok_secret.ics","ok":true}`)
+	body := []byte(`{"api_key":"chr_sk_SECRET","secret":"whsec_plain","ical_feed_url":"https://api.chronary.ai/ical/tok_secret.ics","claim_url":"https://console.chronary.ai/claim/anonymous#token=claimTOKEN","ok":true}`)
 
 	redacted := redactDebugBody(body)
 
+	assert.NotContains(t, redacted, "claimTOKEN")
 	assert.NotContains(t, redacted, "chr_sk_SECRET")
 	assert.NotContains(t, redacted, "whsec_plain")
 	assert.NotContains(t, redacted, "tok_secret")

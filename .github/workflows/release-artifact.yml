@@ -140,6 +140,89 @@ jobs:
           # Clean up the staging bin dir so it doesn't ship in the release.
           rm -rf dist/bin
 
+      # SBOM (EU CRA Annex I Part II (1), #1634): CycloneDX, in dist/ so the
+      # checksums cover it and the GitHub Release attaches it. Fail-closed:
+      # these run before anything is published, with no continue-on-error,
+      # so no release ships without a valid SBOM.
+      # Tool pins and the validator live in scripts/public-release/sbom.mjs.
+      - name: Generate SBOM
+        env:
+          # The tool needs a newer Go than some go.mod files ask for; let the
+          # go command fetch the toolchain it declares (checksum-verified).
+          GOTOOLCHAIN: auto
+        run: |
+          set -euo pipefail
+          # Application: describe what is linked into each shipped chronary
+          # binary. The linked modules differ by OS (Windows pulls in console
+          # packages the others don't), so there is one SBOM per target, with
+          # the same targets and CGO_ENABLED=0 as "Build release archives".
+          # -std lists the Go standard library, which every binary links.
+          GOBIN="$RUNNER_TEMP/sbom-bin" go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.12.0
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p dist
+
+          targets=(
+            "linux amd64"
+            "linux arm64"
+            "darwin amd64"
+            "darwin arm64"
+            "windows amd64"
+            "windows arm64"
+          )
+
+          for target in "${targets[@]}"; do
+            read -r goos goarch <<<"$target"
+            SBOM_FILE="dist/chronary_${version}_${goos}_${goarch}_sbom.cdx.json"
+            GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 \
+              "$RUNNER_TEMP/sbom-bin/cyclonedx-gomod" app -main ./cmd/chronary -json -licenses -std \
+              -output-version 1.6 -output "$SBOM_FILE" .
+          done
+          echo "SBOM_COUNT=${#targets[@]}" >> "$GITHUB_ENV"
+
+      - name: Validate SBOM
+        env:
+          EXPECTED_NAME: 'github.com/Chronary/chronary-cli'
+        run: |
+          set -euo pipefail
+          # Every per-target SBOM must pass, and there must be one per target.
+          # (The loop body is not indented: the embedded validator below is
+          # kept byte-for-byte equal to VALIDATE_SBOM_JS.)
+          count=0
+          for SBOM_FILE in "dist/chronary_${GITHUB_REF_NAME#v}"_*_sbom.cdx.json; do
+          count=$((count + 1))
+          node - "$SBOM_FILE" "$EXPECTED_NAME" "${GITHUB_REF_NAME#v}" <<'JS'
+          const fs = require('fs');
+          const [file, expectedName, expectedVersion] = process.argv.slice(2);
+          const fail = (msg) => {
+            console.error('::error::SBOM ' + file + ': ' + msg);
+            process.exit(1);
+          };
+          let bom;
+          try {
+            bom = JSON.parse(fs.readFileSync(file, 'utf8'));
+          } catch (e) {
+            fail('not readable JSON (' + e.message + ')');
+          }
+          if (bom.bomFormat !== 'CycloneDX') fail('bomFormat is ' + JSON.stringify(bom.bomFormat) + ', expected CycloneDX');
+          if (!/^1\.[4-9]$/.test(String(bom.specVersion))) fail('unsupported specVersion ' + JSON.stringify(bom.specVersion));
+          const main = bom.metadata && bom.metadata.component;
+          if (!main) fail('metadata.component is missing');
+          const name = [main.group, main.name].filter(Boolean).join('/');
+          if (name !== expectedName) fail('main component is ' + JSON.stringify(name) + ', expected ' + JSON.stringify(expectedName));
+          const bare = (v) => String(v).replace(/^v/, '');
+          if (!expectedVersion) fail('no expected version given');
+          if (main.version === undefined || main.version === '') main.version = bare(expectedVersion);
+          else if (bare(main.version) !== bare(expectedVersion)) fail('version is ' + main.version + ', expected ' + expectedVersion);
+          if (bom.components !== undefined && !Array.isArray(bom.components)) fail('components is not an array');
+          fs.writeFileSync(file, JSON.stringify(bom, null, 2) + '\n');
+          console.log('SBOM ok: ' + name + '@' + main.version + ', ' + (bom.components || []).length + ' components');
+          JS
+          done
+          if [ "$count" -ne "$SBOM_COUNT" ]; then
+            echo "::error::expected $SBOM_COUNT SBOMs (one per target), found $count"
+            exit 1
+          fi
+
       - name: Generate checksums
         shell: bash
         run: |
@@ -157,6 +240,7 @@ jobs:
             dist/chronary_*.zip
             dist/chronary_*.deb
             dist/chronary_*.rpm
+            dist/chronary_*_sbom.cdx.json
 
       - name: Create GitHub Release
         env:
