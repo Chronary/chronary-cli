@@ -235,7 +235,7 @@ func newSchedulingRespondCmd() *cobra.Command {
 				return formatError(err)
 			}
 
-			var resp client.ProposalResponse
+			var resp client.RespondToProposalResult
 			if err := json.Unmarshal(body, &resp); err != nil {
 				return fmt.Errorf("parsing response: %w", err)
 			}
@@ -245,6 +245,14 @@ func newSchedulingRespondCmd() *cobra.Command {
 			}
 
 			fmt.Printf("Response %s recorded: %s from %s\n", resp.ID, resp.Response, resp.AgentID)
+			if resp.AutoResolved != nil {
+				fmt.Printf("Proposal auto-resolved: %s\n", *resp.AutoResolved)
+			}
+			if resp.AutoResolveError != nil {
+				// The response is saved; the API's message says what to do next.
+				fmt.Printf("Auto-resolve failed (%s): %s\n", resp.AutoResolveError.Code, resp.AutoResolveError.Message)
+				fmt.Printf("Check it with `chronary scheduling get %s`; if it is still pending, run `chronary scheduling resolve %s` once the cause is fixed.\n", args[0], args[0])
+			}
 			return nil
 		},
 	}

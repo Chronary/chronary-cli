@@ -482,6 +482,21 @@ type ProposalResponse struct {
 	CreatedAt      time.Time      `json:"created_at"`
 }
 
+// AutoResolveError says why a respond's auto-resolve failed and what to do next.
+type AutoResolveError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// RespondToProposalResult is the respond result: the saved response plus the
+// auto-resolve outcome. When AutoResolveError is set the response is still
+// saved and its Message says what to do next.
+type RespondToProposalResult struct {
+	ProposalResponse
+	AutoResolved     *string           `json:"auto_resolved"`
+	AutoResolveError *AutoResolveError `json:"auto_resolve_error"`
+}
+
 // Proposal represents a scheduling proposal with slots and responses.
 type Proposal struct {
 	ID                  string             `json:"id"`

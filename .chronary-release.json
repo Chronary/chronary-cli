@@ -1,9 +1,9 @@
 {
   "artifact": "cli",
-  "version": "0.13.0",
-  "public_tag": "v0.13.0",
-  "private_source_sha": "a7defb293727244540f6ecfcdeb44181d1fba91c",
-  "private_release_tag": "public-release/20261120.1-a7defb2",
+  "version": "0.13.1",
+  "public_tag": "v0.13.1",
+  "private_source_sha": "867ab21f45ffe7e0a73a0f976be18671203766d7",
+  "private_release_tag": "public-release/20261122.1-867ab21",
   "publish_registry": false,
-  "generated_at": "2026-11-20T14:00:52.612Z"
+  "generated_at": "2026-11-22T06:58:11.523Z"
 }

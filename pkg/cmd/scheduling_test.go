@@ -125,6 +125,59 @@ func TestSchedulingRespondCommand(t *testing.T) {
 	require.NoError(t, rootCmd.Execute())
 }
 
+func TestSchedulingRespondCommandReportsAutoResolve(t *testing.T) {
+	cases := []struct {
+		name string
+		body map[string]any
+		want []string
+	}{
+		{
+			name: "failed auto-resolve",
+			body: map[string]any{
+				"auto_resolved":      nil,
+				"auto_resolve_error": map[string]any{"code": "event_quota_exceeded", "message": "The response was saved, but the proposal was not resolved"},
+			},
+			want: []string{"Response rsp_1 recorded", "Auto-resolve failed (event_quota_exceeded)", "chronary scheduling resolve spr_1"},
+		},
+		{
+			name: "auto-resolved",
+			body: map[string]any{"auto_resolved": "confirmed", "auto_resolve_error": nil},
+			want: []string{"Proposal auto-resolved: confirmed"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body := map[string]any{
+					"id": "rsp_1", "agent_id": "agt_a", "response": "accept",
+					"created_at": time.Now().Format(time.RFC3339),
+				}
+				for k, v := range tc.body {
+					body[k] = v
+				}
+				_ = json.NewEncoder(w).Encode(body)
+			}))
+			defer srv.Close()
+
+			fileArg := writeTempJSON(t, "respond.json", map[string]any{
+				"agent_id": "agt_a", "response": "accept", "selected_slot_id": "slt_1",
+			})
+			out := captureStdout(t, func() {
+				rootCmd := NewRootCmd("test")
+				rootCmd.SetArgs([]string{
+					"scheduling", "respond", "spr_1", fileArg,
+					"--api-key", "chr_sk_xxx",
+					"--base-url", srv.URL,
+				})
+				require.NoError(t, rootCmd.Execute())
+			})
+			for _, w := range tc.want {
+				assert.Contains(t, out, w)
+			}
+		})
+	}
+}
+
 func TestSchedulingResolveCommand(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
