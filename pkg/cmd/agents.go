@@ -223,7 +223,7 @@ func newAgentsGetCmd() *cobra.Command {
 				return err
 			}
 
-			body, _, err := c.Get("/v1/agents/" + args[0])
+			body, _, err := c.Get("/v1/agents/" + client.PathSegment(args[0]))
 			if err != nil {
 				return formatError(err)
 			}
@@ -301,7 +301,7 @@ func newAgentsUpdateCmd() *cobra.Command {
 				return fmt.Errorf("at least one flag required: --name, --status, --description, --metadata")
 			}
 
-			body, _, err := c.Patch("/v1/agents/"+args[0], payload)
+			body, _, err := c.Patch("/v1/agents/"+client.PathSegment(args[0]), payload)
 			if err != nil {
 				return formatError(err)
 			}
@@ -358,7 +358,7 @@ func newAgentsDeleteCmd() *cobra.Command {
 				}
 			}
 
-			_, _, err = c.Delete("/v1/agents/" + args[0])
+			_, _, err = c.Delete("/v1/agents/" + client.PathSegment(args[0]))
 			if err != nil {
 				return formatError(err)
 			}

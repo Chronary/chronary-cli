@@ -2,6 +2,11 @@
 
 All notable changes to `chronary-cli` will be documented in this file starting with the soft-launch release.
 
+## 0.13.2 — unreleased
+
+- `chronary calendars delete` warns in its confirmation prompt that the calendar's booking pages are deleted too and their links stop working, as the API now does (#2545).
+- **IDs are escaped in request paths (#2519).** An ID given as an argument or an ID flag (`--calendar`, `--agent`) now goes into the URL as one escaped segment, so a value such as `../agents/agt_1`, `whk_1#` or `evt_1?expand=all` can no longer turn `chronary events delete` or `chronary events get` into a call on another resource or add a query string. `""`, `"."` and `".."` are refused before any request is sent (`invalid ID: a path parameter must not be empty, "." or "..". No request was sent`). Real Chronary IDs are unaffected.
+
 ## 0.13.1 — unreleased
 
 - `chronary scheduling respond` prints whether the proposal auto-resolved and, when the auto-resolve failed, the API's reason with a hint to check the proposal and run `chronary scheduling resolve <id>`. The response is saved either way. `--output json` carries `auto_resolved` and `auto_resolve_error` (#2540).

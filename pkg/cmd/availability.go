@@ -119,7 +119,7 @@ func newAvailAgentCmd() *cobra.Command {
 				return err
 			}
 
-			path := fmt.Sprintf("/v1/agents/%s/availability", args[0])
+			path := fmt.Sprintf("/v1/agents/%s/availability", client.PathSegment(args[0]))
 			path = appendQueryParams(path, buildAvailParams(cmd))
 			body, _, err := c.Get(path)
 			if err != nil {
@@ -148,7 +148,7 @@ func newAvailCalendarCmd() *cobra.Command {
 				return err
 			}
 
-			path := fmt.Sprintf("/v1/calendars/%s/availability", args[0])
+			path := fmt.Sprintf("/v1/calendars/%s/availability", client.PathSegment(args[0]))
 			path = appendQueryParams(path, buildAvailParams(cmd))
 			body, _, err := c.Get(path)
 			if err != nil {

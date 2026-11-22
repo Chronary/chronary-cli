@@ -199,7 +199,7 @@ func newKeysDeleteCmd() *cobra.Command {
 				}
 			}
 
-			_, _, err = c.Delete("/v1/keys/" + args[0])
+			_, _, err = c.Delete("/v1/keys/" + client.PathSegment(args[0]))
 			if err != nil {
 				return formatError(err)
 			}

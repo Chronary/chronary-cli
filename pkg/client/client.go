@@ -91,6 +91,9 @@ func (c *Client) doJSON(method, path string, body any) ([]byte, int, error) {
 }
 
 func (c *Client) do(method, path string, body io.Reader) ([]byte, int, error) {
+	if hasInvalidPathSegment(path) {
+		return nil, 0, ErrInvalidPathSegment
+	}
 	url := c.BaseURL + path
 
 	var bodyBytes []byte

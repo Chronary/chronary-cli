@@ -48,7 +48,7 @@ func newCalendarsRotateICalTokenCmd() *cobra.Command {
 				return err
 			}
 
-			body, _, err := c.Post("/v1/calendars/"+args[0]+"/ical-token/rotate", nil)
+			body, _, err := c.Post("/v1/calendars/"+client.PathSegment(args[0])+"/ical-token/rotate", nil)
 			if err != nil {
 				return formatError(err)
 			}
@@ -86,7 +86,7 @@ func newCalendarsContextCmd() *cobra.Command {
 				return err
 			}
 
-			path := fmt.Sprintf("/v1/calendars/%s/context", args[0])
+			path := fmt.Sprintf("/v1/calendars/%s/context", client.PathSegment(args[0]))
 			body, _, err := c.Get(path)
 			if err != nil {
 				return formatError(err)
@@ -137,7 +137,7 @@ func newCalendarsAvailabilityRulesCmd() *cobra.Command {
 				return err
 			}
 
-			path := fmt.Sprintf("/v1/calendars/%s/availability-rules", args[0])
+			path := fmt.Sprintf("/v1/calendars/%s/availability-rules", client.PathSegment(args[0]))
 			body, _, err := c.Get(path)
 			if err != nil {
 				return formatError(err)
@@ -184,7 +184,7 @@ func newCalendarsAvailabilityRulesCmd() *cobra.Command {
 				return fmt.Errorf("@file argument required (JSON body)")
 			}
 
-			path := fmt.Sprintf("/v1/calendars/%s/availability-rules", args[0])
+			path := fmt.Sprintf("/v1/calendars/%s/availability-rules", client.PathSegment(args[0]))
 			body, _, err := c.Put(path, payload)
 			if err != nil {
 				return formatError(err)
@@ -232,7 +232,7 @@ func newCalendarsAvailabilityRulesCmd() *cobra.Command {
 				}
 			}
 
-			path := fmt.Sprintf("/v1/calendars/%s/availability-rules", args[0])
+			path := fmt.Sprintf("/v1/calendars/%s/availability-rules", client.PathSegment(args[0]))
 			_, _, err = c.Delete(path)
 			if err != nil {
 				return formatError(err)
@@ -269,7 +269,7 @@ func newCalendarsListCmd() *cobra.Command {
 
 			path := "/v1/calendars"
 			if agentID != "" {
-				path = fmt.Sprintf("/v1/agents/%s/calendars", agentID)
+				path = fmt.Sprintf("/v1/agents/%s/calendars", client.PathSegment(agentID))
 			}
 			if search != "" {
 				path = appendQueryParams(path, url.Values{"q": []string{search}})
@@ -391,7 +391,7 @@ func newCalendarsCreateCmd() *cobra.Command {
 
 			path := "/v1/calendars"
 			if agentID != "" {
-				path = fmt.Sprintf("/v1/agents/%s/calendars", agentID)
+				path = fmt.Sprintf("/v1/agents/%s/calendars", client.PathSegment(agentID))
 			}
 
 			body, _, err := c.Post(path, payload)
@@ -436,7 +436,7 @@ func newCalendarsGetCmd() *cobra.Command {
 				return err
 			}
 
-			body, _, err := c.Get("/v1/calendars/" + args[0])
+			body, _, err := c.Get("/v1/calendars/" + client.PathSegment(args[0]))
 			if err != nil {
 				return formatError(err)
 			}
@@ -505,7 +505,7 @@ func newCalendarsUpdateCmd() *cobra.Command {
 				return fmt.Errorf("at least one flag required: --name, --timezone, --default-reminders, --metadata")
 			}
 
-			body, _, err := c.Patch("/v1/calendars/"+args[0], payload)
+			body, _, err := c.Patch("/v1/calendars/"+client.PathSegment(args[0]), payload)
 			if err != nil {
 				return formatError(err)
 			}
@@ -552,7 +552,7 @@ func newCalendarsDeleteCmd() *cobra.Command {
 				var confirm bool
 				err := huh.NewConfirm().
 					Title(fmt.Sprintf("Delete calendar %s?", args[0])).
-					Description("This will delete the calendar and all its events. This action cannot be undone.").
+					Description("This will delete the calendar, all its events and its booking pages (their links stop working). This action cannot be undone.").
 					Value(&confirm).
 					Run()
 				if err != nil || !confirm {
@@ -561,7 +561,7 @@ func newCalendarsDeleteCmd() *cobra.Command {
 				}
 			}
 
-			_, _, err = c.Delete("/v1/calendars/" + args[0])
+			_, _, err = c.Delete("/v1/calendars/" + client.PathSegment(args[0]))
 			if err != nil {
 				return formatError(err)
 			}

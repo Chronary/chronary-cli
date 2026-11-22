@@ -53,9 +53,9 @@ func newEventsListCmd() *cobra.Command {
 
 			var path string
 			if agentID != "" {
-				path = fmt.Sprintf("/v1/agents/%s/events", agentID)
+				path = fmt.Sprintf("/v1/agents/%s/events", client.PathSegment(agentID))
 			} else {
-				path = fmt.Sprintf("/v1/calendars/%s/events", calendarID)
+				path = fmt.Sprintf("/v1/calendars/%s/events", client.PathSegment(calendarID))
 			}
 
 			all, _ := cmd.Flags().GetBool("all")
@@ -363,7 +363,7 @@ func newEventsCreateCmd() *cobra.Command {
 				}
 			}
 
-			path := fmt.Sprintf("/v1/calendars/%s/events", calendarID)
+			path := fmt.Sprintf("/v1/calendars/%s/events", client.PathSegment(calendarID))
 			body, _, err := c.Post(path, payload)
 			if err != nil {
 				return formatError(err)
@@ -421,9 +421,9 @@ func newEventsGetCmd() *cobra.Command {
 
 			var path string
 			if calendarID != "" {
-				path = fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, args[0])
+				path = fmt.Sprintf("/v1/calendars/%s/events/%s", client.PathSegment(calendarID), client.PathSegment(args[0]))
 			} else {
-				path = fmt.Sprintf("/v1/events/%s", args[0])
+				path = fmt.Sprintf("/v1/events/%s", client.PathSegment(args[0]))
 			}
 			body, _, err := c.Get(path)
 			if err != nil {
@@ -549,9 +549,9 @@ func newEventsUpdateCmd() *cobra.Command {
 
 			var path string
 			if calendarID != "" {
-				path = fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, args[0])
+				path = fmt.Sprintf("/v1/calendars/%s/events/%s", client.PathSegment(calendarID), client.PathSegment(args[0]))
 			} else {
-				path = fmt.Sprintf("/v1/events/%s", args[0])
+				path = fmt.Sprintf("/v1/events/%s", client.PathSegment(args[0]))
 			}
 			body, _, err := c.Patch(path, payload)
 			if err != nil {
@@ -627,9 +627,9 @@ func newEventsDeleteCmd() *cobra.Command {
 
 			var path string
 			if calendarID != "" {
-				path = fmt.Sprintf("/v1/calendars/%s/events/%s", calendarID, args[0])
+				path = fmt.Sprintf("/v1/calendars/%s/events/%s", client.PathSegment(calendarID), client.PathSegment(args[0]))
 			} else {
-				path = fmt.Sprintf("/v1/events/%s", args[0])
+				path = fmt.Sprintf("/v1/events/%s", client.PathSegment(args[0]))
 			}
 			if occurrenceStart != "" {
 				// Occurrence-cancel (EXDATE): the API returns 200 with the
@@ -689,7 +689,7 @@ func newEventsConfirmCmd() *cobra.Command {
 				return err
 			}
 
-			path := fmt.Sprintf("/v1/events/%s/confirm", args[0])
+			path := fmt.Sprintf("/v1/events/%s/confirm", client.PathSegment(args[0]))
 			body, _, err := c.Put(path, nil)
 			if err != nil {
 				return formatError(err)
@@ -725,7 +725,7 @@ func newEventsReleaseCmd() *cobra.Command {
 				return err
 			}
 
-			path := fmt.Sprintf("/v1/events/%s/release", args[0])
+			path := fmt.Sprintf("/v1/events/%s/release", client.PathSegment(args[0]))
 			body, _, err := c.Put(path, nil)
 			if err != nil {
 				return formatError(err)

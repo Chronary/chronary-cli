@@ -211,7 +211,7 @@ func newWebhooksGetCmd() *cobra.Command {
 				return err
 			}
 
-			body, _, err := c.Get("/v1/webhooks/" + args[0])
+			body, _, err := c.Get("/v1/webhooks/" + client.PathSegment(args[0]))
 			if err != nil {
 				return formatError(err)
 			}
@@ -278,7 +278,7 @@ func newWebhooksUpdateCmd() *cobra.Command {
 				return fmt.Errorf("at least one flag required: --url, --events, --active")
 			}
 
-			body, _, err := c.Patch("/v1/webhooks/"+args[0], payload)
+			body, _, err := c.Patch("/v1/webhooks/"+client.PathSegment(args[0]), payload)
 			if err != nil {
 				return formatError(err)
 			}
@@ -319,7 +319,7 @@ func newWebhooksDeliveriesCmd() *cobra.Command {
 			}
 
 			webhookID := args[0]
-			path := "/v1/webhooks/" + webhookID + "/deliveries"
+			path := "/v1/webhooks/" + client.PathSegment(webhookID) + "/deliveries"
 			params := url.Values{}
 			if v, _ := cmd.Flags().GetInt("limit"); v > 0 {
 				params.Set("limit", strconv.Itoa(v))
@@ -434,7 +434,7 @@ func newWebhooksDeliveryCmd() *cobra.Command {
 				return err
 			}
 
-			body, _, err := c.Get("/v1/webhooks/" + args[0] + "/deliveries/" + args[1])
+			body, _, err := c.Get("/v1/webhooks/" + client.PathSegment(args[0]) + "/deliveries/" + client.PathSegment(args[1]))
 			if err != nil {
 				return formatError(err)
 			}
@@ -498,7 +498,7 @@ func newWebhooksTestCmd() *cobra.Command {
 				return err
 			}
 
-			body, _, err := c.Post("/v1/webhooks/"+args[0]+"/test", map[string]string{"event_type": eventType})
+			body, _, err := c.Post("/v1/webhooks/"+client.PathSegment(args[0])+"/test", map[string]string{"event_type": eventType})
 			if err != nil {
 				return formatError(err)
 			}
@@ -541,7 +541,7 @@ func newWebhooksReplayCmd() *cobra.Command {
 				return err
 			}
 
-			body, _, err := c.Post("/v1/webhooks/"+args[0]+"/deliveries/"+args[1]+"/replay", nil)
+			body, _, err := c.Post("/v1/webhooks/"+client.PathSegment(args[0])+"/deliveries/"+client.PathSegment(args[1])+"/replay", nil)
 			if err != nil {
 				return formatError(err)
 			}
@@ -587,7 +587,7 @@ func newWebhooksRotateSecretCmd() *cobra.Command {
 				return err
 			}
 
-			body, _, err := c.Post("/v1/webhooks/"+args[0]+"/secret/rotate", map[string]string{"expire_old_in": expireOldIn})
+			body, _, err := c.Post("/v1/webhooks/"+client.PathSegment(args[0])+"/secret/rotate", map[string]string{"expire_old_in": expireOldIn})
 			if err != nil {
 				return formatError(err)
 			}
@@ -667,7 +667,7 @@ func newWebhooksDeleteCmd() *cobra.Command {
 				}
 			}
 
-			_, _, err = c.Delete("/v1/webhooks/" + args[0])
+			_, _, err = c.Delete("/v1/webhooks/" + client.PathSegment(args[0]))
 			if err != nil {
 				return formatError(err)
 			}

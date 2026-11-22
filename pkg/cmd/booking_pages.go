@@ -143,7 +143,7 @@ func newBookingPagesBookingsCmd() *cobra.Command {
 			if v, _ := cmd.Flags().GetString("cursor"); v != "" {
 				params.Set("cursor", v)
 			}
-			path := "/v1/booking-pages/" + args[0] + "/bookings"
+			path := "/v1/booking-pages/" + client.PathSegment(args[0]) + "/bookings"
 			path = appendQueryParams(path, params)
 			body, _, err := c.Get(path)
 			if err != nil {
@@ -205,7 +205,7 @@ func newBookingPagesRotateSlugCmd() *cobra.Command {
 				return err
 			}
 
-			body, _, err := c.Post("/v1/booking-pages/"+args[0]+"/rotate-slug", nil)
+			body, _, err := c.Post("/v1/booking-pages/"+client.PathSegment(args[0])+"/rotate-slug", nil)
 			if err != nil {
 				return formatError(err)
 			}
@@ -334,7 +334,7 @@ func newBookingPagesGetCmd() *cobra.Command {
 				return err
 			}
 
-			body, _, err := c.Get("/v1/booking-pages/" + args[0])
+			body, _, err := c.Get("/v1/booking-pages/" + client.PathSegment(args[0]))
 			if err != nil {
 				return formatError(err)
 			}
@@ -414,7 +414,7 @@ func newBookingPagesUpdateCmd() *cobra.Command {
 				return fmt.Errorf("at least one flag required: --title, --description, --duration, --buffer, --window-days, --min-notice, --timezone, --active")
 			}
 
-			body, _, err := c.Patch("/v1/booking-pages/"+args[0], payload)
+			body, _, err := c.Patch("/v1/booking-pages/"+client.PathSegment(args[0]), payload)
 			if err != nil {
 				return formatError(err)
 			}
@@ -474,7 +474,7 @@ func newBookingPagesDeleteCmd() *cobra.Command {
 				}
 			}
 
-			_, _, err = c.Delete("/v1/booking-pages/" + args[0])
+			_, _, err = c.Delete("/v1/booking-pages/" + client.PathSegment(args[0]))
 			if err != nil {
 				return formatError(err)
 			}

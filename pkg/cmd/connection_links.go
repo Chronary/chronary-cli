@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Chronary/chronary-cli/pkg/client"
 	"github.com/spf13/cobra"
 )
 
@@ -32,7 +33,7 @@ func newConnectionLinkCreateCmd() *cobra.Command {
 			return fmt.Errorf("--calendar is required")
 		}
 		payload := map[string]any{"capabilities": strings.Split(capabilities, ","), "publication_policy": policy}
-		path := fmt.Sprintf("/v1/calendars/%s/connection-links", calendarID)
+		path := fmt.Sprintf("/v1/calendars/%s/connection-links", client.PathSegment(calendarID))
 		body, _, err := c.Post(path, payload)
 		if err != nil {
 			return formatError(err)
@@ -105,7 +106,7 @@ func newConnectionLinkGetCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		body, _, err := c.Get("/v1/connection-links/" + args[0])
+		body, _, err := c.Get("/v1/connection-links/" + client.PathSegment(args[0]))
 		if err != nil {
 			return formatError(err)
 		}
@@ -124,7 +125,7 @@ func newConnectionLinkCancelCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		_, _, err = c.Delete("/v1/connection-links/" + args[0])
+		_, _, err = c.Delete("/v1/connection-links/" + client.PathSegment(args[0]))
 		return formatError(err)
 	}}
 }

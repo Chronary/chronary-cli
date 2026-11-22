@@ -211,7 +211,7 @@ func waitForUpgradeRequest(c *client.Client, req client.UpgradeRequest, announce
 	}
 	for !isTerminalUpgradeStatus(req.Status) {
 		upgradeRequestSleep(upgradeRequestPollInterval)
-		body, _, err := c.Get("/v1/billing/upgrade-requests/" + req.ID)
+		body, _, err := c.Get("/v1/billing/upgrade-requests/" + client.PathSegment(req.ID))
 		if err != nil {
 			return req, formatError(err)
 		}
@@ -246,7 +246,7 @@ func newUpgradeRequestCmd() *cobra.Command {
 			if err := requireAPIKey(c); err != nil {
 				return err
 			}
-			body, _, err := c.Get("/v1/billing/upgrade-requests/" + args[0])
+			body, _, err := c.Get("/v1/billing/upgrade-requests/" + client.PathSegment(args[0]))
 			if err != nil {
 				return formatError(err)
 			}
@@ -266,7 +266,7 @@ func newUpgradeRequestCmd() *cobra.Command {
 			if err := requireAPIKey(c); err != nil {
 				return err
 			}
-			body, _, err := c.Post("/v1/billing/upgrade-requests/"+args[0]+"/cancel", nil)
+			body, _, err := c.Post("/v1/billing/upgrade-requests/"+client.PathSegment(args[0])+"/cancel", nil)
 			if err != nil {
 				return formatError(err)
 			}

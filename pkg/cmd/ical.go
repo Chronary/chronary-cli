@@ -44,7 +44,7 @@ func newICalPauseCmd() *cobra.Command {
 			if err := requireAPIKey(c); err != nil {
 				return err
 			}
-			body, _, err := c.Post("/v1/ical-subscriptions/"+args[0]+"/pause", nil)
+			body, _, err := c.Post("/v1/ical-subscriptions/"+client.PathSegment(args[0])+"/pause", nil)
 			if err != nil {
 				return formatError(err)
 			}
@@ -66,7 +66,7 @@ func newICalResumeCmd() *cobra.Command {
 			if err := requireAPIKey(c); err != nil {
 				return err
 			}
-			body, _, err := c.Post("/v1/ical-subscriptions/"+args[0]+"/resume", nil)
+			body, _, err := c.Post("/v1/ical-subscriptions/"+client.PathSegment(args[0])+"/resume", nil)
 			if err != nil {
 				return formatError(err)
 			}
@@ -113,7 +113,7 @@ func newICalListCmd() *cobra.Command {
 				filterParams.Set("status", v)
 			}
 
-			path := fmt.Sprintf("/v1/agents/%s/ical-subscriptions", agentID)
+			path := fmt.Sprintf("/v1/agents/%s/ical-subscriptions", client.PathSegment(agentID))
 			path = appendQueryParams(path, filterParams)
 
 			var body []byte
@@ -217,7 +217,7 @@ func newICalCreateCmd() *cobra.Command {
 				payload["label"] = label
 			}
 
-			path := fmt.Sprintf("/v1/agents/%s/ical-subscriptions", agentID)
+			path := fmt.Sprintf("/v1/agents/%s/ical-subscriptions", client.PathSegment(agentID))
 			body, _, err := c.Post(path, payload)
 			if err != nil {
 				return formatError(err)
@@ -264,7 +264,7 @@ func newICalGetCmd() *cobra.Command {
 				return err
 			}
 
-			body, _, err := c.Get("/v1/ical-subscriptions/" + args[0])
+			body, _, err := c.Get("/v1/ical-subscriptions/" + client.PathSegment(args[0]))
 			if err != nil {
 				return formatError(err)
 			}
@@ -332,7 +332,7 @@ func newICalUpdateCmd() *cobra.Command {
 				return fmt.Errorf("at least one flag required: --label, --url")
 			}
 
-			body, _, err := c.Patch("/v1/ical-subscriptions/"+args[0], payload)
+			body, _, err := c.Patch("/v1/ical-subscriptions/"+client.PathSegment(args[0]), payload)
 			if err != nil {
 				return formatError(err)
 			}
@@ -386,7 +386,7 @@ func newICalDeleteCmd() *cobra.Command {
 				}
 			}
 
-			_, _, err = c.Delete("/v1/ical-subscriptions/" + args[0])
+			_, _, err = c.Delete("/v1/ical-subscriptions/" + client.PathSegment(args[0]))
 			if err != nil {
 				return formatError(err)
 			}
@@ -416,7 +416,7 @@ func newICalSyncCmd() *cobra.Command {
 				return err
 			}
 
-			_, _, err = c.Post("/v1/ical-subscriptions/"+args[0]+"/sync", nil)
+			_, _, err = c.Post("/v1/ical-subscriptions/"+client.PathSegment(args[0])+"/sync", nil)
 			if err != nil {
 				return formatError(err)
 			}

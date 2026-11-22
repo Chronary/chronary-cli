@@ -178,7 +178,7 @@ func newSchedulingGetCmd() *cobra.Command {
 				return err
 			}
 
-			path := fmt.Sprintf("/v1/scheduling/proposals/%s", args[0])
+			path := fmt.Sprintf("/v1/scheduling/proposals/%s", client.PathSegment(args[0]))
 			body, _, err := c.Get(path)
 			if err != nil {
 				return formatError(err)
@@ -229,7 +229,7 @@ func newSchedulingRespondCmd() *cobra.Command {
 				return fmt.Errorf("@file argument required (JSON body)")
 			}
 
-			path := fmt.Sprintf("/v1/scheduling/proposals/%s/respond", args[0])
+			path := fmt.Sprintf("/v1/scheduling/proposals/%s/respond", client.PathSegment(args[0]))
 			body, _, err := c.Post(path, payload)
 			if err != nil {
 				return formatError(err)
@@ -273,7 +273,7 @@ func newSchedulingResolveCmd() *cobra.Command {
 				return err
 			}
 
-			path := fmt.Sprintf("/v1/scheduling/proposals/%s/resolve", args[0])
+			path := fmt.Sprintf("/v1/scheduling/proposals/%s/resolve", client.PathSegment(args[0]))
 			body, _, err := c.Post(path, nil)
 			if err != nil {
 				return formatError(err)
@@ -314,7 +314,7 @@ func newSchedulingCancelCmd() *cobra.Command {
 				return err
 			}
 
-			path := fmt.Sprintf("/v1/scheduling/proposals/%s/cancel", args[0])
+			path := fmt.Sprintf("/v1/scheduling/proposals/%s/cancel", client.PathSegment(args[0]))
 			body, _, err := c.Post(path, nil)
 			if err != nil {
 				return formatError(err)
