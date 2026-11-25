@@ -42,7 +42,7 @@ func newConnectionLinkCreateCmd() *cobra.Command {
 		if err = json.Unmarshal(body, &result); err != nil {
 			return err
 		}
-		if printStructured(cmd, result) {
+		if printBody(cmd, body) {
 			return nil
 		}
 		fmt.Printf("Setup link: %v\n", result["setup_url"])
@@ -82,7 +82,7 @@ func newConnectionLinkListCmd() *cobra.Command {
 		if err = json.Unmarshal(body, &result); err != nil {
 			return err
 		}
-		if printStructured(cmd, result) {
+		if printBody(cmd, body) {
 			return nil
 		}
 		if len(result.Data) == 0 {
@@ -114,7 +114,7 @@ func newConnectionLinkGetCmd() *cobra.Command {
 		if err = json.Unmarshal(body, &result); err != nil {
 			return err
 		}
-		printStructured(cmd, result)
+		printBody(cmd, body)
 		return nil
 	}}
 }

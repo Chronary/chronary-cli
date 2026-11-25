@@ -38,7 +38,7 @@ func newUsageHistoryCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, history) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -99,7 +99,7 @@ func newUsageBaseCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, usage) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -147,12 +147,18 @@ func newUsageBaseCmd() *cobra.Command {
 }
 
 func usageRow(name string, counter client.UsageCounter, nc bool) []string {
-	remaining := counter.Limit - counter.Used
+	// null limit = unlimited (#2526). A limit of 0 means the plan does not
+	// include the feature: show 0 with nothing remaining, never "unlimited".
+	if counter.Limit == nil {
+		return []string{name, fmt.Sprintf("%d", counter.Used), "unlimited", "-"}
+	}
+	limit := *counter.Limit
+	remaining := limit - counter.Used
 	remainStr := fmt.Sprintf("%d", remaining)
 
 	// Color the remaining count based on usage percentage
-	if !nc && counter.Limit > 0 {
-		pct := float64(counter.Used) / float64(counter.Limit)
+	if !nc && limit > 0 {
+		pct := float64(counter.Used) / float64(limit)
 		switch {
 		case pct >= 0.9:
 			remainStr = output.ColorStatus("error", nc)[:0] + output.ColorStatus(remainStr, nc)
@@ -161,16 +167,10 @@ func usageRow(name string, counter client.UsageCounter, nc bool) []string {
 		}
 	}
 
-	limitStr := fmt.Sprintf("%d", counter.Limit)
-	if counter.Limit == 0 {
-		limitStr = "unlimited"
-		remainStr = "-"
-	}
-
 	return []string{
 		name,
 		fmt.Sprintf("%d", counter.Used),
-		limitStr,
+		fmt.Sprintf("%d", limit),
 		remainStr,
 	}
 }

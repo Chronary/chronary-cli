@@ -26,25 +26,38 @@ const (
 )
 
 // paginatedResponse is the generic shape of a list API response for pagination.
+// NextCursor stays raw so a list without cursors (key absent: nil) is told
+// apart from the last page of a list that has them (`null`).
 type paginatedResponse struct {
-	Data   []json.RawMessage `json:"data"`
-	Total  int               `json:"total"`
-	Limit  int               `json:"limit"`
-	Offset int               `json:"offset"`
+	Data       []json.RawMessage `json:"data"`
+	Total      int               `json:"total"`
+	Limit      int               `json:"limit"`
+	Offset     int               `json:"offset"`
+	NextCursor json.RawMessage   `json:"next_cursor"`
 }
 
 // fetchAllPages fetches all pages from a paginated endpoint and returns the
 // combined raw JSON items. The basePath should not include limit/offset params.
+//
+// A list that returns next_cursor (agents, calendars, the org-wide events
+// list) is walked by cursor, so `--all` is not limited by the API's cap on
+// offset (10,000, #2691); a cursor page sends no offset, which the API
+// refuses to combine with one. Other lists are walked by offset.
 func fetchAllPages(c *client.Client, basePath string, limit int) ([]json.RawMessage, int, error) {
 	// Non-nil, so an empty result marshals as [] rather than null (#2095).
 	allData := []json.RawMessage{}
 	offset := 0
+	cursor := ""
 	total := 0
 
 	for {
 		params := url.Values{}
 		params.Set("limit", strconv.Itoa(limit))
-		params.Set("offset", strconv.Itoa(offset))
+		if cursor != "" {
+			params.Set("cursor", cursor)
+		} else {
+			params.Set("offset", strconv.Itoa(offset))
+		}
 		path := appendQueryParams(basePath, params)
 
 		body, _, err := c.Get(path)
@@ -59,6 +72,25 @@ func fetchAllPages(c *client.Client, basePath string, limit int) ([]json.RawMess
 
 		total = resp.Total
 		allData = append(allData, resp.Data...)
+		if len(resp.Data) == 0 {
+			break
+		}
+
+		if resp.NextCursor != nil {
+			var next *string
+			if err := json.Unmarshal(resp.NextCursor, &next); err != nil {
+				return nil, 0, fmt.Errorf("parsing next_cursor: %w", err)
+			}
+			if next == nil || *next == "" {
+				break
+			}
+			// The cursor just sent coming back would page forever.
+			if *next == cursor {
+				return nil, 0, fmt.Errorf("the API returned the same next_cursor twice; stopping")
+			}
+			cursor = *next
+			continue
+		}
 
 		if offset+len(resp.Data) >= total {
 			break

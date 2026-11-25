@@ -86,7 +86,7 @@ func newAuditLogListCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, resp) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -156,8 +156,8 @@ func newAuditLogListCmd() *cobra.Command {
 	cmd.Flags().StringVar(&to, "to", "", "Upper bound (ISO-8601 UTC). Defaults to now.")
 	cmd.Flags().StringVar(&action, "action", "", "Filter by action (e.g. agent.create)")
 	cmd.Flags().StringVar(&actorKeyPrefix, "actor", "", "Filter by actor key prefix (first 20 chars)")
-	cmd.Flags().StringVar(&actorType, "actor-type", "", "Filter by who acted: session, org_key, agent_key or system")
-	cmd.Flags().StringVar(&actorID, "actor-id", "", "Filter by actor id (an API key id, or the org id for console sessions)")
+	cmd.Flags().StringVar(&actorType, "actor-type", "", "Filter by who acted: session, org_key, agent_key, oauth_app (an app connected by signing in) or system")
+	cmd.Flags().StringVar(&actorID, "actor-id", "", "Filter by actor id (an API key id, the org id for console sessions, or the connection id for oauth_app)")
 	cmd.Flags().StringVar(&requestID, "request-id", "", "Filter by the request id of the original call")
 	cmd.Flags().StringVar(&resource, "resource", "", "Filter by an entity id or id prefix the request touched (e.g. cal_)")
 	cmd.Flags().StringVar(&statusClass, "status-class", "", "Filter by response status class: 2xx, 3xx, 4xx or 5xx")

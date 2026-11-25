@@ -8,7 +8,6 @@ import (
 
 	"github.com/Chronary/chronary-cli/pkg/client"
 	"github.com/Chronary/chronary-cli/pkg/output"
-	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
 
@@ -58,7 +57,7 @@ func newCalendarsRotateICalTokenCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, cal) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -97,7 +96,7 @@ func newCalendarsContextCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, ctx) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -148,7 +147,7 @@ func newCalendarsAvailabilityRulesCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, rules) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -195,7 +194,7 @@ func newCalendarsAvailabilityRulesCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, rules) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -217,19 +216,8 @@ func newCalendarsAvailabilityRulesCmd() *cobra.Command {
 				return err
 			}
 
-			force, _ := cmd.Flags().GetBool("force")
-			yes, _ := cmd.Flags().GetBool("yes")
-			if !force && !yes {
-				var confirm bool
-				err := huh.NewConfirm().
-					Title(fmt.Sprintf("Delete availability rules for %s?", args[0])).
-					Description("This action cannot be undone.").
-					Value(&confirm).
-					Run()
-				if err != nil || !confirm {
-					fmt.Println("Cancelled.")
-					return nil
-				}
+			if proceed, err := confirmDestructive(cmd, fmt.Sprintf("Delete availability rules for %s?", args[0]), "This action cannot be undone."); err != nil || !proceed {
+				return err
 			}
 
 			path := fmt.Sprintf("/v1/calendars/%s/availability-rules", client.PathSegment(args[0]))
@@ -306,7 +294,7 @@ func newCalendarsListCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, resp) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -404,7 +392,7 @@ func newCalendarsCreateCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, cal) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -446,7 +434,7 @@ func newCalendarsGetCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, cal) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -515,7 +503,7 @@ func newCalendarsUpdateCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, cal) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -546,19 +534,8 @@ func newCalendarsDeleteCmd() *cobra.Command {
 				return err
 			}
 
-			force, _ := cmd.Flags().GetBool("force")
-			yes, _ := cmd.Flags().GetBool("yes")
-			if !force && !yes {
-				var confirm bool
-				err := huh.NewConfirm().
-					Title(fmt.Sprintf("Delete calendar %s?", args[0])).
-					Description("This will delete the calendar, all its events and its booking pages (their links stop working). This action cannot be undone.").
-					Value(&confirm).
-					Run()
-				if err != nil || !confirm {
-					fmt.Println("Cancelled.")
-					return nil
-				}
+			if proceed, err := confirmDestructive(cmd, fmt.Sprintf("Delete calendar %s?", args[0]), "This will delete the calendar, all its events and its booking pages (their links stop working). This action cannot be undone."); err != nil || !proceed {
+				return err
 			}
 
 			_, _, err = c.Delete("/v1/calendars/" + client.PathSegment(args[0]))

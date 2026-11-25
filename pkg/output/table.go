@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
+	xansi "github.com/charmbracelet/x/ansi"
 )
 
 // TableDef defines a table's columns and how to extract cell values.
@@ -47,11 +48,9 @@ func RenderTable(def TableDef, noColor bool) {
 	fmt.Println(t)
 }
 
-// Truncate shortens a string to maxLen, adding "..." if needed.
+// Truncate shortens a string to maxLen terminal columns, adding "..." if
+// needed. It measures display width, not bytes, so non-ASCII text is never cut
+// mid-character and wide (CJK) text that fits is left alone (#2722).
 func Truncate(s string, maxLen int) string {
-	s = strings.TrimSpace(s)
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
+	return xansi.Truncate(strings.TrimSpace(s), maxLen, "...")
 }

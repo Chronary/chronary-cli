@@ -61,7 +61,7 @@ func newSchedulingCreateCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, proposal) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -91,6 +91,16 @@ func newSchedulingListCmd() *cobra.Command {
 			all, _ := cmd.Flags().GetBool("all")
 			path := "/v1/scheduling/proposals"
 
+			// Filters apply to both branches; --all used to drop them (#2560).
+			filterParams := url.Values{}
+			if v, _ := cmd.Flags().GetString("status"); v != "" {
+				filterParams.Set("status", v)
+			}
+			if v, _ := cmd.Flags().GetString("organizer"); v != "" {
+				filterParams.Set("organizer_agent_id", v)
+			}
+			path = appendQueryParams(path, filterParams)
+
 			var body []byte
 			if all {
 				items, total, err := fetchAllPages(c, path, pageSizeProposals)
@@ -103,12 +113,6 @@ func newSchedulingListCmd() *cobra.Command {
 				}
 			} else {
 				params := url.Values{}
-				if v, _ := cmd.Flags().GetString("status"); v != "" {
-					params.Set("status", v)
-				}
-				if v, _ := cmd.Flags().GetString("organizer"); v != "" {
-					params.Set("organizer_agent_id", v)
-				}
 				if v, _ := cmd.Flags().GetInt("limit"); v > 0 {
 					params.Set("limit", strconv.Itoa(v))
 				}
@@ -128,7 +132,7 @@ func newSchedulingListCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, resp) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -189,7 +193,7 @@ func newSchedulingGetCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, proposal) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -240,7 +244,7 @@ func newSchedulingRespondCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, resp) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -284,7 +288,7 @@ func newSchedulingResolveCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, result) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -325,7 +329,7 @@ func newSchedulingCancelCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, result) {
+			if printBody(cmd, body) {
 				return nil
 			}
 

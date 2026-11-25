@@ -9,7 +9,6 @@ import (
 
 	"github.com/Chronary/chronary-cli/pkg/client"
 	"github.com/Chronary/chronary-cli/pkg/output"
-	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
 
@@ -91,7 +90,7 @@ func newWebhooksListCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, resp) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -173,7 +172,7 @@ func newWebhooksCreateCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, wh) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -221,7 +220,7 @@ func newWebhooksGetCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, wh) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -288,7 +287,7 @@ func newWebhooksUpdateCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, wh) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -360,7 +359,7 @@ func newWebhooksDeliveriesCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, resp) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -444,7 +443,7 @@ func newWebhooksDeliveryCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, d) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -508,7 +507,7 @@ func newWebhooksTestCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, sent) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -551,7 +550,7 @@ func newWebhooksReplayCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, sent) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -568,9 +567,10 @@ func newWebhooksRotateSecretCmd() *cobra.Command {
 		Use:   "rotate-secret <webhook-id>",
 		Short: "Rotate a webhook's signing secret, keeping the old one valid for a while (Developer or Pro)",
 		Long: "Generate a new signing secret and print it once. Deliveries are signed with the new " +
-			"secret in X-Signature at once; the old secret keeps signing X-Signature-Previous until " +
-			"--expire-old-in has passed (now, 1h, 24h or 7d; default 24h), so your receiver can " +
-			"switch secrets without rejecting deliveries. The SDK verifiers accept either header.",
+			"secret in X-Signature-V2 (and the deprecated v1 X-Signature) at once; the old secret keeps " +
+			"signing X-Signature-V2-Previous (and X-Signature-Previous) until --expire-old-in has passed " +
+			"(now, 1h, 24h or 7d; default 24h), so your receiver can switch secrets without rejecting " +
+			"deliveries. The current SDK verifiers accept a match on either v2 header.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			expireOldIn, _ := cmd.Flags().GetString("expire-old-in")
@@ -597,7 +597,7 @@ func newWebhooksRotateSecretCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, rotated) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -606,7 +606,7 @@ func newWebhooksRotateSecretCmd() *cobra.Command {
 			// here. Printed once, only on stdout, never in logs or errors.
 			fmt.Printf("New secret (shown once, store it now): %s\n", rotated.Secret)
 			if rotated.PreviousSecretExpiresAt != nil {
-				fmt.Printf("The old secret keeps working until %s (X-Signature-Previous)\n", *rotated.PreviousSecretExpiresAt)
+				fmt.Printf("The old secret keeps working until %s (X-Signature-V2-Previous)\n", *rotated.PreviousSecretExpiresAt)
 			} else {
 				fmt.Println("The old secret stopped working now")
 			}
@@ -652,19 +652,8 @@ func newWebhooksDeleteCmd() *cobra.Command {
 				return err
 			}
 
-			force, _ := cmd.Flags().GetBool("force")
-			yes, _ := cmd.Flags().GetBool("yes")
-			if !force && !yes {
-				var confirm bool
-				err := huh.NewConfirm().
-					Title(fmt.Sprintf("Delete webhook %s?", args[0])).
-					Description("This action cannot be undone.").
-					Value(&confirm).
-					Run()
-				if err != nil || !confirm {
-					fmt.Println("Cancelled.")
-					return nil
-				}
+			if proceed, err := confirmDestructive(cmd, fmt.Sprintf("Delete webhook %s?", args[0]), "This action cannot be undone."); err != nil || !proceed {
+				return err
 			}
 
 			_, _, err = c.Delete("/v1/webhooks/" + client.PathSegment(args[0]))

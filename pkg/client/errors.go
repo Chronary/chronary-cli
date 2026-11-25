@@ -37,8 +37,17 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Type, e.Message)
 }
 
-// FriendlyMessage returns a user-facing message for the error type.
+// FriendlyMessage returns a user-facing message for the error type, followed
+// by the request_id when the API sent one, so support can correlate it (#2561).
 func (e *APIError) FriendlyMessage() string {
+	msg := e.friendlyBody()
+	if e.RequestID != "" {
+		msg += fmt.Sprintf("\n(request_id: %s)", e.RequestID)
+	}
+	return msg
+}
+
+func (e *APIError) friendlyBody() string {
 	switch e.Type {
 	case "not_found":
 		return "Resource not found. Check the ID and try again."
@@ -68,6 +77,12 @@ func (e *APIError) FriendlyMessage() string {
 	case "rate_limited":
 		return "Rate limited. Wait a moment and try again."
 	case "authentication_error":
+		// The API uses this type for more than a bad key (for example a key
+		// disabled because its org is scheduled for deletion), so show its
+		// reason rather than replacing it with a fixed re-login hint (#2561).
+		if m := strings.TrimSpace(e.Message); m != "" {
+			return fmt.Sprintf("Authentication failed: %s.\nIf the key is wrong or revoked, run `chronary auth login`.", strings.TrimSuffix(m, "."))
+		}
 		return "Authentication failed. Run `chronary auth login` to reconfigure your API key."
 	default:
 		return e.Message

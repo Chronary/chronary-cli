@@ -2,12 +2,29 @@
 
 All notable changes to `chronary-cli` will be documented in this file starting with the soft-launch release.
 
-## 0.13.2 — unreleased
+## 0.14.0 — unreleased
+
+- **`webhooks rotate-secret` names the v2 signature headers (#2569).** Deliveries now carry `X-Signature-V2`, which also signs the delivery id, event type, test flag and replay-of id, and `X-Signature-V2-Previous` during a rotation. The help text and the "old secret keeps working" line name those headers; the current SDK verifiers check only the v2 pair. Text only; no behaviour change.
+- **`-o json` / `-o yaml` print the API response as sent (#2738).** Commands decoded the body into internal structs and printed those, so fields the structs lacked were dropped (`external_sync` on `events create` / `update`, `orgId` and `deletedAt` on events, `next_cursor`, the delivery diagnostics `last_response_status` / `last_error_code` / `last_duration_ms`, newer plan limits, `payment_method` on `billing`), timestamps lost their milliseconds and `null` fields vanished. YAML printed lowercased Go field names (`orgid:`) and JSON objects such as `metadata` as lists of byte values. Both formats now carry every key and value of the REST response, with the API's key names. Output is additive except that timestamps keep the API's format.
+- **`--debug` writes its HTTP traces to stderr (#2723).** They went to stdout, so `-o json --debug` was not valid JSON. The dump also redacts `setup_url` (a connection link's one-time secret).
+- **Table cells are cut by display width (#2722).** Long titles, descriptions and labels were cut by bytes, so non-ASCII text was cut too early or mid-character (invalid UTF-8, sometimes a misaligned table), and short CJK titles were cut although they fit.
+- **A GET refused with a `Retry-After` beyond 60 seconds is not retried (#2558).** A 429 or 503 such as an iCal sync cooldown (up to 900 s on Free) was retried twice after 5 s waits and then failed with the same error. The API's error is now shown at once. A `Retry-After` of 60 s or less is retried as before (each wait capped at 5 s). Same rule as the SDKs.
+- **`--all` follows `next_cursor` (#2691).** `agents list`, `calendars list` and `events list-all` with `--all` paged by offset only, so past 10,000 rows they will fail once the API enforces its `offset` cap. They now page by the returned `next_cursor`; other lists still page by offset. `--all` also stops on an empty page instead of asking again.
+- **Delete commands no longer report success when they could not ask (#2692).** With no terminal (CI, cron, containers, agent sandboxes) the confirmation prompt fails; `keys`, `agents`, `calendars`, `calendars availability-rules`, `events`, `webhooks`, `ical` and `booking-pages` `delete` used to print `Cancelled.` and exit 0 without sending the DELETE. They now exit 1 with `confirmation required ... Re-run with --yes to confirm; no request was sent`, including under `TERM=dumb` with no terminal on stdin. Answering no or Ctrl-C still prints `Cancelled.` and exits 0. Scripts should pass `--yes`.
+- **`auth login` validates the key for real (#2559).** It called the unauthenticated `/health`, so a mistyped or revoked key was saved as "Authenticated." It now calls `GET /v1/usage` with the key and saves nothing when the API rejects it.
+- **`auth login --profile X` no longer inherits another profile's base URL (#2527).** It used the active profile's URL, so logging in to `prod` while `dev` was active saved the prod key with the dev URL. The URL is now `--base-url` / `CHRONARY_BASE_URL`, else the default; a saved URL is never reused, so re-login repairs a profile saved with the wrong one. Validation errors name the URL used.
+- **A corrupt config file is reported, never overwritten (#2562).** Commands said "no API key configured" for an unparseable `config.json`, and `auth login` then rewrote it with one profile, losing the others. Commands that need a key now name the file in an error (passing `--api-key` still works, with a warning; key-less commands such as `health` and `plans` are unaffected), and `auth login`, `switch`, `remove` and `list` leave it untouched.
+- **Authentication errors keep the API's reason (#2561).** Every `authentication_error` was replaced with a re-login hint, hiding reasons such as "This key is disabled because the organization is scheduled for deletion." The reason is shown before the hint, and every API error now ends with its `request_id`.
+- **`chronary usage` tells "not included" from "unlimited" (#2526).** A limit of `0` (feature not in the plan) showed as `unlimited`, and `-o json` turned the API's `null` (unlimited) into `0`. A `null` limit is now `unlimited` and stays `null` in JSON; `0` shows as `0`.
+- **`chronary ical` reads the API's snake_case fields (#2521).** `list`, `get`, `create`, `update`, `pause` and `resume` showed blank agent and calendar IDs, no last-sync time or last error, and a zero created date; `-o json` emitted camelCase keys with empty values. The fields now decode, and `-o json` matches the REST response.
+- **`chronary scheduling list --all` keeps `--status` and `--organizer` (#2560).** The filters were dropped on the `--all` path, so `--all --status pending` returned every proposal.
+
+## 0.13.2 — 2026-11-22
 
 - `chronary calendars delete` warns in its confirmation prompt that the calendar's booking pages are deleted too and their links stop working, as the API now does (#2545).
 - **IDs are escaped in request paths (#2519).** An ID given as an argument or an ID flag (`--calendar`, `--agent`) now goes into the URL as one escaped segment, so a value such as `../agents/agt_1`, `whk_1#` or `evt_1?expand=all` can no longer turn `chronary events delete` or `chronary events get` into a call on another resource or add a query string. `""`, `"."` and `".."` are refused before any request is sent (`invalid ID: a path parameter must not be empty, "." or "..". No request was sent`). Real Chronary IDs are unaffected.
 
-## 0.13.1 — unreleased
+## 0.13.1 — 2026-11-22
 
 - `chronary scheduling respond` prints whether the proposal auto-resolved and, when the auto-resolve failed, the API's reason with a hint to check the proposal and run `chronary scheduling resolve <id>`. The response is saved either way. `--output json` carries `auto_resolved` and `auto_resolve_error` (#2540).
 

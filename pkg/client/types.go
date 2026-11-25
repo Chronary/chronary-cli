@@ -157,7 +157,8 @@ type Webhook struct {
 	DeactivatedAt     *string `json:"deactivatedAt,omitempty"`
 	DeactivatedReason *string `json:"deactivatedReason,omitempty"`
 	// previousSecretExpiresAt is set while a secret rotation's grace window
-	// is open: deliveries also carry X-Signature-Previous until then.
+	// is open: deliveries also carry X-Signature-V2-Previous and
+	// X-Signature-Previous until then.
 	PreviousSecretExpiresAt *string   `json:"previousSecretExpiresAt,omitempty"`
 	Secret                  string    `json:"secret,omitempty"`
 	CreatedAt               time.Time `json:"createdAt"`
@@ -295,10 +296,12 @@ type AvailabilityWarning struct {
 	Message string `json:"message"`
 }
 
-// UsageCounter tracks used vs limit for a resource.
+// UsageCounter tracks used vs limit for a resource. Limit is nullable: the
+// API sends null for unlimited and 0 for a feature the plan does not include,
+// so a plain int would conflate the two (#2526).
 type UsageCounter struct {
-	Used  int `json:"used"`
-	Limit int `json:"limit"`
+	Used  int  `json:"used"`
+	Limit *int `json:"limit"`
 }
 
 // ScopedKeysUsage tracks active agent-scoped API keys for the current period.
@@ -419,17 +422,20 @@ type ScopedAPIKeyListResponse struct {
 	Keys []ScopedAPIKey `json:"keys"`
 }
 
-// ICalSubscription represents an iCal feed subscription.
+// ICalSubscription represents an iCal feed subscription. Unlike the
+// agent/calendar/event entities, this resource is snake_case on the wire
+// (OpenAPI ICalSubscription; #2521). Nullable fields keep no omitempty so
+// -o json mirrors the REST response.
 type ICalSubscription struct {
 	ID           string    `json:"id"`
-	AgentID      string    `json:"agentId"`
-	CalendarID   string    `json:"calendarId"`
+	AgentID      string    `json:"agent_id"`
+	CalendarID   string    `json:"calendar_id"`
 	URL          string    `json:"url"`
-	Label        *string   `json:"label,omitempty"`
+	Label        *string   `json:"label"`
 	Status       string    `json:"status"`
-	LastSyncedAt *string   `json:"lastSyncedAt,omitempty"`
-	LastError    *string   `json:"lastError,omitempty"`
-	CreatedAt    time.Time `json:"createdAt"`
+	LastSyncedAt *string   `json:"last_synced_at"`
+	LastError    *string   `json:"last_error"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 // HealthResponse is the shape returned by GET /health.

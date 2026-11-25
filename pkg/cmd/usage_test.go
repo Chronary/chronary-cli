@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/Chronary/chronary-cli/pkg/client"
@@ -48,13 +49,17 @@ func TestUsageCommand(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(out), &usage))
 
 	assert.Equal(t, 1, usage.WebhookEndpoints.Used)
-	assert.Equal(t, 1, usage.WebhookEndpoints.Limit)
+	require.NotNil(t, usage.WebhookEndpoints.Limit)
+	assert.Equal(t, 1, *usage.WebhookEndpoints.Limit)
 	assert.Equal(t, 0, usage.Proposals.Used)
-	assert.Equal(t, 0, usage.Proposals.Limit)
+	require.NotNil(t, usage.Proposals.Limit)
+	assert.Equal(t, 0, *usage.Proposals.Limit)
 	assert.Equal(t, 1, usage.RecurringEvents.Used)
-	assert.Equal(t, 1, usage.RecurringEvents.Limit)
+	require.NotNil(t, usage.RecurringEvents.Limit)
+	assert.Equal(t, 1, *usage.RecurringEvents.Limit)
 	assert.Equal(t, 1, usage.CalendarConnections.Used)
-	assert.Equal(t, 5, usage.CalendarConnections.Limit)
+	require.NotNil(t, usage.CalendarConnections.Limit)
+	assert.Equal(t, 5, *usage.CalendarConnections.Limit)
 	assert.Equal(t, 2, usage.ScopedKeys.Count)
 	require.NotNil(t, usage.ScopedKeys.Limit)
 	assert.Equal(t, 50, *usage.ScopedKeys.Limit)
@@ -66,22 +71,25 @@ func TestUsageCommand(t *testing.T) {
 	assert.Contains(t, out, "scoped_keys")
 }
 
-// ScopedKeys.Limit is nullable (unlimited tiers); it must decode as nil.
+// ScopedKeys.Limit and every UsageCounter.Limit are nullable (unlimited
+// tiers); they must decode as nil and stay null in -o json (#2526).
 func TestUsageScopedKeysNullLimit(t *testing.T) {
+	unlimited := map[string]any{"used": 0, "limit": nil}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]any{
 			"period_start":         "2026-04-01T00:00:00Z",
 			"period_end":           "2026-05-01T00:00:00Z",
 			"plan":                 "scale",
-			"agents":               map[string]int{"used": 0, "limit": 0},
-			"calendars":            map[string]int{"used": 0, "limit": 0},
-			"events":               map[string]int{"used": 0, "limit": 0},
-			"api_calls":            map[string]int{"used": 0, "limit": 0},
-			"webhooks":             map[string]int{"used": 0, "limit": 0},
-			"webhook_endpoints":    map[string]int{"used": 0, "limit": 0},
-			"availability_queries": map[string]int{"used": 0, "limit": 0},
-			"ical_subscriptions":   map[string]int{"used": 0, "limit": 0},
-			"proposals":            map[string]int{"used": 0, "limit": 0},
+			"agents":               unlimited,
+			"calendars":            unlimited,
+			"events":               unlimited,
+			"api_calls":            unlimited,
+			"webhooks":             unlimited,
+			"webhook_endpoints":    unlimited,
+			"availability_queries": unlimited,
+			"ical_subscriptions":   unlimited,
+			"proposals":            unlimited,
+			"booking_pages":        map[string]any{"used": 3, "limit": nil},
 			"scoped_keys":          map[string]any{"count": 7, "limit": nil},
 		})
 	}))
@@ -97,6 +105,53 @@ func TestUsageScopedKeysNullLimit(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(out), &usage))
 	assert.Equal(t, 7, usage.ScopedKeys.Count)
 	assert.Nil(t, usage.ScopedKeys.Limit)
+	assert.Nil(t, usage.BookingPages.Limit)
+	assert.Equal(t, 3, usage.BookingPages.Used)
+
+	var raw map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal([]byte(out), &raw))
+	var bookingPages map[string]any
+	require.NoError(t, json.Unmarshal(raw["booking_pages"], &bookingPages))
+	limit, present := bookingPages["limit"]
+	assert.True(t, present, "booking_pages.limit must be present")
+	assert.Nil(t, limit, "null (unlimited) must stay null in -o json, not become 0")
+}
+
+// A limit of 0 (feature not in the plan) must not render as "unlimited";
+// only a null limit is unlimited (#2526).
+func TestUsageRowZeroVersusNullLimit(t *testing.T) {
+	zero, hundred := 0, 100
+	assert.Equal(t, []string{"Proposals", "0", "0", "0"},
+		usageRow("Proposals", client.UsageCounter{Used: 0, Limit: &zero}, true))
+	assert.Equal(t, []string{"Booking Pages", "3", "unlimited", "-"},
+		usageRow("Booking Pages", client.UsageCounter{Used: 3, Limit: nil}, true))
+	assert.Equal(t, []string{"Events", "15", "100", "85"},
+		usageRow("Events", client.UsageCounter{Used: 15, Limit: &hundred}, true))
+}
+
+func TestUsageTableFreePlanShowsZeroNotUnlimited(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"period_start":       "2026-11-01T00:00:00Z",
+			"period_end":         "2026-12-01T00:00:00Z",
+			"plan":               "free",
+			"events":             map[string]any{"used": 1, "limit": 100},
+			"ical_subscriptions": map[string]any{"used": 0, "limit": 0},
+			"proposals":          map[string]any{"used": 0, "limit": 0},
+		})
+	}))
+	defer srv.Close()
+
+	out := captureStdout(t, func() {
+		rootCmd := NewRootCmd("test")
+		rootCmd.SetArgs([]string{"usage", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--no-color"})
+		require.NoError(t, rootCmd.Execute())
+	})
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "iCal Subscriptions") || strings.Contains(line, "Proposals") {
+			assert.NotContains(t, line, "unlimited", line)
+		}
+	}
 }
 
 func TestUsageHistoryCommand(t *testing.T) {

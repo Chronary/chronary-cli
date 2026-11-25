@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -46,7 +47,7 @@ run "chronary billing request-upgrade" and give the approval URL to your human.`
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, summary) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -176,11 +177,14 @@ canceled or expired. After "completed", retry the call that was blocked about
 			}
 
 			if wait {
-				final, err := waitForUpgradeRequest(c, req, !structured)
+				final, finalBody, err := waitForUpgradeRequest(c, req, body, !structured)
 				if err != nil {
 					return err
 				}
-				req = final
+				// GET never returns owner_notification or reused; only the
+				// POST does. Carry them into the final body so --wait output
+				// still says whether the owner was emailed or a request reused.
+				req, body = final, mergeMissingKeys(finalBody, body, "owner_notification", "reused")
 				if !structured {
 					fmt.Printf("\nUpgrade request %s is %s.\n", req.ID, req.Status)
 					if req.Status == "completed" {
@@ -189,7 +193,7 @@ canceled or expired. After "completed", retry the call that was blocked about
 				}
 			}
 
-			printStructured(cmd, req)
+			printBody(cmd, body)
 			return nil
 		},
 	}
@@ -199,27 +203,64 @@ canceled or expired. After "completed", retry the call that was blocked about
 	return cmd
 }
 
+// mergeMissingKeys returns base (a JSON object) with each of keys that from
+// has and base lacks appended at the end, in the order given. base's own keys
+// and their order are untouched. If either body is not a JSON object, base is
+// returned unchanged.
+func mergeMissingKeys(base, from []byte, keys ...string) []byte {
+	var baseObj, fromObj map[string]json.RawMessage
+	if json.Unmarshal(base, &baseObj) != nil || json.Unmarshal(from, &fromObj) != nil || baseObj == nil {
+		return base
+	}
+	trimmed := bytes.TrimSpace(base)
+	if len(trimmed) == 0 || trimmed[len(trimmed)-1] != '}' {
+		return base
+	}
+	out := append([]byte{}, trimmed[:len(trimmed)-1]...)
+	added := len(baseObj) > 0
+	for _, k := range keys {
+		if _, ok := baseObj[k]; ok {
+			continue
+		}
+		v, ok := fromObj[k]
+		if !ok {
+			continue
+		}
+		name, _ := json.Marshal(k)
+		if added {
+			out = append(out, ',')
+		}
+		out = append(out, name...)
+		out = append(out, ':')
+		out = append(out, v...)
+		added = true
+	}
+	return append(out, '}')
+}
+
 func isTerminalUpgradeStatus(status string) bool {
 	return status != "pending"
 }
 
 // waitForUpgradeRequest polls GET /v1/billing/upgrade-requests/{id} until the
-// request leaves "pending". Polling honors the once-a-minute guidance.
-func waitForUpgradeRequest(c *client.Client, req client.UpgradeRequest, announce bool) (client.UpgradeRequest, error) {
+// request leaves "pending". Polling honors the once-a-minute guidance. It
+// returns the last response body with the request, for structured output.
+func waitForUpgradeRequest(c *client.Client, req client.UpgradeRequest, body []byte, announce bool) (client.UpgradeRequest, []byte, error) {
 	if announce && !isTerminalUpgradeStatus(req.Status) {
 		fmt.Printf("\nWaiting for approval (polling every %s)...\n", upgradeRequestPollInterval)
 	}
 	for !isTerminalUpgradeStatus(req.Status) {
 		upgradeRequestSleep(upgradeRequestPollInterval)
-		body, _, err := c.Get("/v1/billing/upgrade-requests/" + client.PathSegment(req.ID))
+		next, _, err := c.Get("/v1/billing/upgrade-requests/" + client.PathSegment(req.ID))
 		if err != nil {
-			return req, formatError(err)
+			return req, body, formatError(err)
 		}
-		if err := json.Unmarshal(body, &req); err != nil {
-			return req, fmt.Errorf("parsing response: %w", err)
+		if err := json.Unmarshal(next, &req); err != nil {
+			return req, body, fmt.Errorf("parsing response: %w", err)
 		}
+		body = next
 	}
-	return req, nil
+	return req, body, nil
 }
 
 func printUpgradeRequest(r client.UpgradeRequest) {
@@ -283,7 +324,7 @@ func renderUpgradeRequestResponse(cmd *cobra.Command, body []byte) error {
 	if err := json.Unmarshal(body, &req); err != nil {
 		return fmt.Errorf("parsing response: %w", err)
 	}
-	if printStructured(cmd, req) {
+	if printBody(cmd, body) {
 		return nil
 	}
 	printUpgradeRequest(req)

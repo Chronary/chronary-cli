@@ -60,7 +60,7 @@ func printAvailability(cmd *cobra.Command, body []byte) error {
 		return fmt.Errorf("parsing response: %w", err)
 	}
 
-	if printStructured(cmd, resp) {
+	if printBody(cmd, body) {
 		return nil
 	}
 

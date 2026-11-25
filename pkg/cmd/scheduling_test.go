@@ -251,3 +251,26 @@ func TestSchedulingCancelCommand(t *testing.T) {
 	rootCmd.SetArgs([]string{"scheduling", "cancel", "spr_1", "--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
 	require.NoError(t, rootCmd.Execute())
 }
+
+// --all must keep --status and --organizer on every page request (#2560).
+func TestSchedulingListAllKeepsFilters(t *testing.T) {
+	var queries []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v1/scheduling/proposals", r.URL.Path)
+		queries = append(queries, r.URL.RawQuery)
+		json.NewEncoder(w).Encode(map[string]any{"data": []any{}, "total": 0, "limit": 100, "offset": 0})
+	}))
+	defer srv.Close()
+
+	captureStdout(t, func() {
+		rootCmd := NewRootCmd("test")
+		rootCmd.SetArgs([]string{"scheduling", "list", "--all", "--status", "pending", "--organizer", "agt_9",
+			"--api-key", "chr_sk_xxx", "--base-url", srv.URL, "--output", "json"})
+		require.NoError(t, rootCmd.Execute())
+	})
+	require.NotEmpty(t, queries)
+	for _, q := range queries {
+		assert.Contains(t, q, "status=pending")
+		assert.Contains(t, q, "organizer_agent_id=agt_9")
+	}
+}

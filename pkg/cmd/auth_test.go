@@ -114,7 +114,7 @@ func TestDebugOutputMasksAuthorizationHeader(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	out := captureStdout(t, func() {
+	out := captureStderr(t, func() {
 		rootCmd := NewRootCmd("test")
 		rootCmd.SetArgs([]string{"health", "--api-key", testOrgKey, "--base-url", srv.URL, "--debug"})
 		_ = rootCmd.Execute()

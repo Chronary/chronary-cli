@@ -8,7 +8,6 @@ import (
 
 	"github.com/Chronary/chronary-cli/pkg/client"
 	"github.com/Chronary/chronary-cli/pkg/output"
-	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
 
@@ -81,7 +80,7 @@ func printICalStatusChange(cmd *cobra.Command, body []byte, done string) error {
 	if err := json.Unmarshal(body, &sub); err != nil {
 		return fmt.Errorf("parsing response: %w", err)
 	}
-	if printStructured(cmd, sub) {
+	if printBody(cmd, body) {
 		return nil
 	}
 
@@ -147,7 +146,7 @@ func newICalListCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, resp) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -228,7 +227,7 @@ func newICalCreateCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, sub) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -274,7 +273,7 @@ func newICalGetCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, sub) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -342,7 +341,7 @@ func newICalUpdateCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, sub) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -371,19 +370,8 @@ func newICalDeleteCmd() *cobra.Command {
 				return err
 			}
 
-			force, _ := cmd.Flags().GetBool("force")
-			yes, _ := cmd.Flags().GetBool("yes")
-			if !force && !yes {
-				var confirm bool
-				err := huh.NewConfirm().
-					Title(fmt.Sprintf("Delete iCal subscription %s?", args[0])).
-					Description("This will stop syncing events from this feed. This action cannot be undone.").
-					Value(&confirm).
-					Run()
-				if err != nil || !confirm {
-					fmt.Println("Cancelled.")
-					return nil
-				}
+			if proceed, err := confirmDestructive(cmd, fmt.Sprintf("Delete iCal subscription %s?", args[0]), "This will stop syncing events from this feed. This action cannot be undone."); err != nil || !proceed {
+				return err
 			}
 
 			_, _, err = c.Delete("/v1/ical-subscriptions/" + client.PathSegment(args[0]))

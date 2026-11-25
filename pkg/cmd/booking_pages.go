@@ -8,7 +8,6 @@ import (
 
 	"github.com/Chronary/chronary-cli/pkg/client"
 	"github.com/Chronary/chronary-cli/pkg/output"
-	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
 
@@ -80,7 +79,7 @@ func newBookingPagesListCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, resp) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -155,7 +154,7 @@ func newBookingPagesBookingsCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, resp) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -215,7 +214,7 @@ func newBookingPagesRotateSlugCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, page) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -298,7 +297,7 @@ func newBookingPagesCreateCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, page) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -344,7 +343,7 @@ func newBookingPagesGetCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, page) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -424,7 +423,7 @@ func newBookingPagesUpdateCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, page) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -459,19 +458,8 @@ func newBookingPagesDeleteCmd() *cobra.Command {
 				return err
 			}
 
-			force, _ := cmd.Flags().GetBool("force")
-			yes, _ := cmd.Flags().GetBool("yes")
-			if !force && !yes {
-				var confirm bool
-				err := huh.NewConfirm().
-					Title(fmt.Sprintf("Delete booking page %s?", args[0])).
-					Description("Its hosted URL will stop resolving. Already-booked events are unaffected.").
-					Value(&confirm).
-					Run()
-				if err != nil || !confirm {
-					fmt.Println("Cancelled.")
-					return nil
-				}
+			if proceed, err := confirmDestructive(cmd, fmt.Sprintf("Delete booking page %s?", args[0]), "Its hosted URL will stop resolving. Already-booked events are unaffected."); err != nil || !proceed {
+				return err
 			}
 
 			_, _, err = c.Delete("/v1/booking-pages/" + client.PathSegment(args[0]))

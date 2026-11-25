@@ -8,7 +8,6 @@ import (
 
 	"github.com/Chronary/chronary-cli/pkg/client"
 	"github.com/Chronary/chronary-cli/pkg/output"
-	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
 
@@ -93,7 +92,7 @@ func newAgentsListCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, resp) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -191,7 +190,7 @@ func newAgentsCreateCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, agent) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -233,7 +232,7 @@ func newAgentsGetCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, agent) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -311,7 +310,7 @@ func newAgentsUpdateCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, agent) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -343,19 +342,8 @@ func newAgentsDeleteCmd() *cobra.Command {
 				return err
 			}
 
-			force, _ := cmd.Flags().GetBool("force")
-			yes, _ := cmd.Flags().GetBool("yes")
-			if !force && !yes {
-				var confirm bool
-				err := huh.NewConfirm().
-					Title(fmt.Sprintf("Delete agent %s?", args[0])).
-					Description("This will decommission the agent. This action cannot be undone.").
-					Value(&confirm).
-					Run()
-				if err != nil || !confirm {
-					fmt.Println("Cancelled.")
-					return nil
-				}
+			if proceed, err := confirmDestructive(cmd, fmt.Sprintf("Delete agent %s?", args[0]), "This will decommission the agent. This action cannot be undone."); err != nil || !proceed {
+				return err
 			}
 
 			_, _, err = c.Delete("/v1/agents/" + client.PathSegment(args[0]))

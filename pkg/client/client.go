@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -30,7 +31,7 @@ type Client struct {
 
 var (
 	chronaryKeyPattern = regexp.MustCompile(`chr_(?:sk|ak)_(?:live_)?[A-Za-z0-9_-]+`)
-	jsonSecretPattern  = regexp.MustCompile(`"((?:api_)?key|secret|revocation_token|ical_token|ical_feed_url|claim_url)"\s*:\s*"[^"]*"`) // claim_url: a claimable org's one-time claim token (#2335)
+	jsonSecretPattern  = regexp.MustCompile(`"((?:api_)?key|secret|revocation_token|ical_token|ical_feed_url|claim_url|setup_url)"\s*:\s*"[^"]*"`) // claim_url: a claimable org's one-time claim token (#2335); setup_url: a connection link's one-time ?t= secret (#2723)
 	icalURLPattern     = regexp.MustCompile(`https://[^"\s]+/ical/[^"\s]+\.ics`)
 	retrySleep         = time.Sleep
 )
@@ -127,8 +128,12 @@ func (c *Client) do(method, path string, body io.Reader) ([]byte, int, error) {
 			return nil, status, err
 		}
 
-		// A monthly plan limit (429 quota_exceeded) is never retried (#1936).
-		if isRetryableStatus(status) && method == "GET" && attempt < attempts-1 && !isQuotaExceeded(status, respBody) {
+		// A monthly plan limit (429 quota_exceeded) is never retried (#1936),
+		// nor is a refusal whose Retry-After is beyond maxRetryAfter (an iCal
+		// sync cooldown, a daily sign-up cap): a retry cannot succeed sooner,
+		// so it would only delay the same error (#2558).
+		if isRetryableStatus(status) && method == "GET" && attempt < attempts-1 &&
+			!isQuotaExceeded(status, respBody) && !retryAfterBeyondCap(retryAfter) {
 			retrySleep(retryDelay(attempt+1, retryAfter))
 			continue
 		}
@@ -156,10 +161,11 @@ func (c *Client) doOnce(method, url string, body io.Reader) ([]byte, int, string
 	}
 	req.Header.Set("User-Agent", "chronary-cli/"+Version)
 
+	// Debug traces go to stderr so `-o json --debug` keeps stdout valid JSON (#2723).
 	if c.Debug {
-		fmt.Printf(">>> %s %s\n", method, url)
+		fmt.Fprintf(os.Stderr, ">>> %s %s\n", method, url)
 		if c.APIKey != "" {
-			fmt.Printf(">>> Authorization: Bearer %s\n", redact.MaskKey(c.APIKey))
+			fmt.Fprintf(os.Stderr, ">>> Authorization: Bearer %s\n", redact.MaskKey(c.APIKey))
 		}
 	}
 
@@ -175,9 +181,9 @@ func (c *Client) doOnce(method, url string, body io.Reader) ([]byte, int, string
 	}
 
 	if c.Debug {
-		fmt.Printf("<<< %d %s\n", resp.StatusCode, resp.Status)
+		fmt.Fprintf(os.Stderr, "<<< %d %s\n", resp.StatusCode, resp.Status)
 		if len(respBody) > 0 {
-			fmt.Printf("<<< %s\n", redactDebugBody(respBody))
+			fmt.Fprintf(os.Stderr, "<<< %s\n", redactDebugBody(respBody))
 		}
 	}
 
@@ -215,10 +221,37 @@ func isQuotaExceeded(status int, body []byte) bool {
 	return apiErr != nil && apiErr.Type == "quota_exceeded"
 }
 
+// maxRetryAfter is the longest server Retry-After the client still retries
+// (the SDKs' cap). A shorter one is waited out up to the 5 s retryDelay cap.
+const maxRetryAfter = 60 * time.Second
+
+// retryAfterBeyondCap reports a Retry-After (delta-seconds or an HTTP date)
+// longer than maxRetryAfter. A missing or unparseable header is not.
+func retryAfterBeyondCap(retryAfter string) bool {
+	if retryAfter == "" {
+		return false
+	}
+	if seconds, err := strconv.Atoi(retryAfter); err == nil {
+		// Compare in seconds: a huge value would overflow time.Duration.
+		return seconds > int(maxRetryAfter/time.Second)
+	}
+	if retryAt, err := http.ParseTime(retryAfter); err == nil {
+		return time.Until(retryAt) > maxRetryAfter
+	}
+	return false
+}
+
 func retryDelay(attempt int, retryAfter string) time.Duration {
 	if retryAfter != "" {
 		if seconds, err := strconv.Atoi(retryAfter); err == nil {
-			return minDuration(time.Duration(seconds)*time.Second, 5*time.Second)
+			// Clamp in seconds first: a huge value would overflow time.Duration.
+			if seconds < 0 {
+				return 0
+			}
+			if seconds >= 5 {
+				return 5 * time.Second
+			}
+			return time.Duration(seconds) * time.Second
 		}
 		if retryAt, err := http.ParseTime(retryAfter); err == nil {
 			delay := time.Until(retryAt)

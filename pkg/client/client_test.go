@@ -228,11 +228,12 @@ func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 }
 
 func TestRedactDebugBody(t *testing.T) {
-	body := []byte(`{"api_key":"chr_sk_SECRET","secret":"whsec_plain","ical_feed_url":"https://api.chronary.ai/ical/tok_secret.ics","claim_url":"https://console.chronary.ai/claim/anonymous#token=claimTOKEN","ok":true}`)
+	body := []byte(`{"api_key":"chr_sk_SECRET","secret":"whsec_plain","ical_feed_url":"https://api.chronary.ai/ical/tok_secret.ics","claim_url":"https://console.chronary.ai/claim/anonymous#token=claimTOKEN","setup_url":"https://console.chronary.ai/connect?t=setupTOKEN","ok":true}`)
 
 	redacted := redactDebugBody(body)
 
 	assert.NotContains(t, redacted, "claimTOKEN")
+	assert.NotContains(t, redacted, "setupTOKEN")
 	assert.NotContains(t, redacted, "chr_sk_SECRET")
 	assert.NotContains(t, redacted, "whsec_plain")
 	assert.NotContains(t, redacted, "tok_secret")
@@ -248,16 +249,17 @@ func TestDebugOutputMasksAPIKey(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	orig := os.Stdout
+	// Debug traces go to stderr, not stdout (#2723).
+	orig := os.Stderr
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
-	os.Stdout = w
+	os.Stderr = w
 
 	c := NewClient(srv.URL, "chr_sk_SECRETBODYvalue9876", true)
 	_, _, reqErr := c.Get("/health")
 
 	require.NoError(t, w.Close())
-	os.Stdout = orig
+	os.Stderr = orig
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 	require.NoError(t, reqErr)

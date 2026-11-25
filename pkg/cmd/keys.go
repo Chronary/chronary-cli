@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/huh"
 	"github.com/Chronary/chronary-cli/pkg/client"
 	"github.com/Chronary/chronary-cli/pkg/output"
 	"github.com/spf13/cobra"
@@ -49,7 +48,7 @@ func newKeysListCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, resp) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -138,7 +137,7 @@ func newKeysCreateCmd() *cobra.Command {
 
 			// Structured output carries the new key on purpose: agents parse
 			// it from stdout, and the API never returns it again.
-			if printStructured(cmd, created) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -184,19 +183,8 @@ func newKeysDeleteCmd() *cobra.Command {
 				return err
 			}
 
-			force, _ := cmd.Flags().GetBool("force")
-			yes, _ := cmd.Flags().GetBool("yes")
-			if !force && !yes {
-				var confirm bool
-				err := huh.NewConfirm().
-					Title(fmt.Sprintf("Revoke key %s?", args[0])).
-					Description("The key will stop working immediately. This action cannot be undone.").
-					Value(&confirm).
-					Run()
-				if err != nil || !confirm {
-					fmt.Println("Cancelled.")
-					return nil
-				}
+			if proceed, err := confirmDestructive(cmd, fmt.Sprintf("Revoke key %s?", args[0]), "The key will stop working immediately. This action cannot be undone."); err != nil || !proceed {
+				return err
 			}
 
 			_, _, err = c.Delete("/v1/keys/" + client.PathSegment(args[0]))

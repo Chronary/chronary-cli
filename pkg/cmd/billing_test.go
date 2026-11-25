@@ -108,6 +108,52 @@ func TestBillingRequestUpgradeRejectsBadInterval(t *testing.T) {
 	assert.Contains(t, err.Error(), "--interval must be month or year")
 }
 
+// #2738 review: GET never returns owner_notification or reused, so --wait
+// output carries the POST's values into the final polled body, after the
+// body's own keys (whose order is kept).
+func TestBillingRequestUpgradeWaitKeepsPostOnlyFields(t *testing.T) {
+	origSleep := upgradeRequestSleep
+	upgradeRequestSleep = func(time.Duration) {}
+	defer func() { upgradeRequestSleep = origSleep }()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"id":"upr_1","status":"pending","owner_notification":"sent","reused":false}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"status":"completed","id":"upr_1","completed_at":"2026-10-19T00:05:00.000Z"}`))
+	}))
+	defer srv.Close()
+
+	out := captureStdout(t, func() {
+		rootCmd := NewRootCmd("test")
+		rootCmd.SetArgs([]string{"billing", "request-upgrade", "--wait", "-o", "json", "--api-key", "chr_sk_xxx", "--base-url", srv.URL})
+		require.NoError(t, rootCmd.Execute())
+	})
+	assert.Equal(t, `{
+  "status": "completed",
+  "id": "upr_1",
+  "completed_at": "2026-10-19T00:05:00.000Z",
+  "owner_notification": "sent",
+  "reused": false
+}
+`, out)
+}
+
+func TestMergeMissingKeys(t *testing.T) {
+	from := []byte(`{"reused":true,"owner_notification":null}`)
+	// Keys base already has are not overwritten.
+	assert.JSONEq(t, `{"reused":false,"owner_notification":null}`,
+		string(mergeMissingKeys([]byte(`{"reused":false}`), from, "owner_notification", "reused")))
+	// An empty object gets no leading comma.
+	assert.Equal(t, `{"reused":true}`, string(mergeMissingKeys([]byte(`{}`), from, "reused")))
+	// Keys from lacks are skipped; non-objects are returned unchanged.
+	assert.Equal(t, `{"a":1}`, string(mergeMissingKeys([]byte(`{"a":1}`), []byte(`{}`), "reused")))
+	assert.Equal(t, `[1]`, string(mergeMissingKeys([]byte(`[1]`), from, "reused")))
+	assert.Equal(t, `{"a":1}`, string(mergeMissingKeys([]byte(`{"a":1}`), []byte(`nope`), "reused")))
+}
+
 func TestBillingRequestUpgradeWaitPollsUntilTerminal(t *testing.T) {
 	origInterval, origSleep := upgradeRequestPollInterval, upgradeRequestSleep
 	slept := 0

@@ -83,7 +83,7 @@ or pipe it into ` + "`chronary auth login --profile <name>`" + ` yourself.`,
 
 			// Structured output carries the new key on purpose: agents parse
 			// it from stdout, and it is never saved or shown again.
-			if printStructured(cmd, resp) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -161,7 +161,7 @@ func runAnonymousSignup(cmd *cobra.Command, agentName, tosVersion string) error 
 
 	// Structured output carries the key and the claim URL on purpose: agents
 	// parse them from stdout, and neither is saved or shown again.
-	if printStructured(cmd, resp) {
+	if printBody(cmd, body) {
 		return nil
 	}
 
@@ -213,7 +213,7 @@ the full API.`,
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, resp) {
+			if printBody(cmd, body) {
 				return nil
 			}
 

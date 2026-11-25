@@ -8,7 +8,6 @@ import (
 
 	"github.com/Chronary/chronary-cli/pkg/client"
 	"github.com/Chronary/chronary-cli/pkg/output"
-	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
 
@@ -113,7 +112,7 @@ func newEventsListCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, resp) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -245,7 +244,7 @@ func newEventsListAllCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, resp) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -374,7 +373,7 @@ func newEventsCreateCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, evt) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -435,7 +434,7 @@ func newEventsGetCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, evt) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -563,7 +562,7 @@ func newEventsUpdateCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, evt) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -604,25 +603,14 @@ func newEventsDeleteCmd() *cobra.Command {
 			calendarID, _ := cmd.Flags().GetString("calendar")
 			occurrenceStart, _ := cmd.Flags().GetString("occurrence-start")
 
-			force, _ := cmd.Flags().GetBool("force")
-			yes, _ := cmd.Flags().GetBool("yes")
-			if !force && !yes {
-				title := fmt.Sprintf("Delete event %s?", args[0])
-				description := "This action cannot be undone."
-				if occurrenceStart != "" {
-					title = fmt.Sprintf("Cancel the %s occurrence of event %s?", occurrenceStart, args[0])
-					description = "Only this occurrence is cancelled; the rest of the series is unaffected."
-				}
-				var confirm bool
-				err := huh.NewConfirm().
-					Title(title).
-					Description(description).
-					Value(&confirm).
-					Run()
-				if err != nil || !confirm {
-					fmt.Println("Cancelled.")
-					return nil
-				}
+			title := fmt.Sprintf("Delete event %s?", args[0])
+			description := "This action cannot be undone."
+			if occurrenceStart != "" {
+				title = fmt.Sprintf("Cancel the %s occurrence of event %s?", occurrenceStart, args[0])
+				description = "Only this occurrence is cancelled; the rest of the series is unaffected."
+			}
+			if proceed, err := confirmDestructive(cmd, title, description); err != nil || !proceed {
+				return err
 			}
 
 			var path string
@@ -648,7 +636,7 @@ func newEventsDeleteCmd() *cobra.Command {
 					return fmt.Errorf("parsing response: %w", err)
 				}
 
-				if printStructured(cmd, evt) {
+				if printBody(cmd, body) {
 					return nil
 				}
 
@@ -700,7 +688,7 @@ func newEventsConfirmCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, evt) {
+			if printBody(cmd, body) {
 				return nil
 			}
 
@@ -736,7 +724,7 @@ func newEventsReleaseCmd() *cobra.Command {
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, evt) {
+			if printBody(cmd, body) {
 				return nil
 			}
 

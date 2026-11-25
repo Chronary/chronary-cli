@@ -61,7 +61,7 @@ org-wide terms (403). A stale --tos-version returns 409 tos_version_stale.`,
 				return fmt.Errorf("parsing response: %w", err)
 			}
 
-			if printStructured(cmd, resp) {
+			if printBody(cmd, body) {
 				return nil
 			}
 

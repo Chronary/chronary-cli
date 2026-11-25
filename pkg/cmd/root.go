@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/Chronary/chronary-cli/pkg/client"
 	"github.com/Chronary/chronary-cli/pkg/config"
 	"github.com/spf13/cobra"
@@ -21,7 +24,7 @@ func NewRootCmd(version string) *cobra.Command {
 
 	// Global flags
 	rootCmd.PersistentFlags().StringP("output", "o", "table", "Output format: json, yaml, or table")
-	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug logging (show HTTP requests/responses)")
+	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug logging (HTTP requests/responses, written to stderr)")
 	rootCmd.PersistentFlags().String("api-key", "", "API key (overrides env and config)")
 	rootCmd.PersistentFlags().String("base-url", "", "API base URL (default: https://api.chronary.ai)")
 	rootCmd.PersistentFlags().Bool("no-color", false, "Disable colored output")
@@ -58,10 +61,24 @@ func NewRootCmd(version string) *cobra.Command {
 
 // clientFromCmd builds an API client from the resolved flags/config/env.
 func clientFromCmd(cmd *cobra.Command) (*client.Client, error) {
-	cfg, _ := config.Load()
+	cfg, cfgErr := config.Load()
 
 	apiKey := viper.GetString("api_key")
 	baseURL := viper.GetString("base_url")
+
+	// An unreadable config never fails here: key-less commands (health,
+	// plans, signup) must keep working, and requireAPIKey names the file when
+	// a key was needed (#2562). When a key came from a flag or env, say that
+	// the saved profile (and its base URL) was skipped.
+	if cfgErr != nil && apiKey != "" {
+		if path, err := config.Path(); err == nil {
+			resolved := baseURL
+			if resolved == "" {
+				resolved = defaultBaseURL
+			}
+			fmt.Fprintf(os.Stderr, "warning: config file %s could not be read (%v); using %s\n", path, cfgErr, resolved)
+		}
+	}
 
 	// Resolve from profile if not set via flag/env
 	if cfg != nil {

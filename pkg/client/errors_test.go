@@ -119,3 +119,28 @@ func TestHTTPErrorFriendlyMessages(t *testing.T) {
 		})
 	}
 }
+
+// authentication_error must keep the server's reason and every error must keep
+// its request_id (#2561).
+func TestAuthenticationErrorShowsReasonAndRequestID(t *testing.T) {
+	err := &APIError{
+		Type:      "authentication_error",
+		Message:   "This key is disabled because the organization is scheduled for deletion.",
+		RequestID: "req_1",
+	}
+	msg := err.FriendlyMessage()
+	assert.Contains(t, msg, "scheduled for deletion")
+	assert.Contains(t, msg, "req_1")
+	assert.Contains(t, msg, "chronary auth login")
+}
+
+func TestAuthenticationErrorWithoutMessageKeepsHint(t *testing.T) {
+	msg := (&APIError{Type: "authentication_error"}).FriendlyMessage()
+	assert.Equal(t, "Authentication failed. Run `chronary auth login` to reconfigure your API key.", msg)
+}
+
+func TestFriendlyMessageAppendsRequestIDForAnyType(t *testing.T) {
+	msg := (&APIError{Type: "not_found", Message: "Agent not found", RequestID: "req_9"}).FriendlyMessage()
+	assert.Contains(t, msg, "Resource not found")
+	assert.Contains(t, msg, "(request_id: req_9)")
+}
