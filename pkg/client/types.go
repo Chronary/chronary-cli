@@ -88,6 +88,7 @@ type Calendar struct {
 	ExternalID       *string         `json:"externalId"`
 	Provider         *string         `json:"provider"`
 	DefaultReminders []int           `json:"default_reminders"`
+	PreventOverlaps  bool            `json:"prevent_overlaps"`
 	Metadata         json.RawMessage `json:"metadata"`
 	DeletedAt        *string         `json:"deletedAt"`
 	CreatedAt        time.Time       `json:"createdAt"`

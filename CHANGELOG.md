@@ -2,7 +2,12 @@
 
 All notable changes to `chronary-cli` will be documented in this file starting with the soft-launch release.
 
-## 0.14.0 — unreleased
+## 0.14.1 — unreleased
+
+- **`auth signup --heard-about <text>` (#2651).** Optional: how you found Chronary, plain text cut to 200 characters, sent as `heard_about` on an email sign-up. The API keeps it for a new organization only and never returns it. Refused with `--anonymous`.
+- **`--prevent-overlaps` on `calendars create` and `calendars update` (#595).** The calendar then refuses any event that would overlap an active event on it. `update` sends it only when the flag is given; `--prevent-overlaps=false` turns it off. `calendars get` shows `Overlaps: refused` for such a calendar, and a refused write (409) lists the conflicting event IDs.
+
+## 0.14.0 — 2026-11-24
 
 - **`webhooks rotate-secret` names the v2 signature headers (#2569).** Deliveries now carry `X-Signature-V2`, which also signs the delivery id, event type, test flag and replay-of id, and `X-Signature-V2-Previous` during a rotation. The help text and the "old secret keeps working" line name those headers; the current SDK verifiers check only the v2 pair. Text only; no behaviour change.
 - **`-o json` / `-o yaml` print the API response as sent (#2738).** Commands decoded the body into internal structs and printed those, so fields the structs lacked were dropped (`external_sync` on `events create` / `update`, `orgId` and `deletedAt` on events, `next_cursor`, the delivery diagnostics `last_response_status` / `last_error_code` / `last_duration_ms`, newer plan limits, `payment_method` on `billing`), timestamps lost their milliseconds and `null` fields vanished. YAML printed lowercased Go field names (`orgid:`) and JSON objects such as `metadata` as lists of byte values. Both formats now carry every key and value of the REST response, with the API's key names. Output is additive except that timestamps keep the API's format.

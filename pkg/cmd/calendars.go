@@ -368,6 +368,10 @@ func newCalendarsCreateCmd() *cobra.Command {
 				if v, ok := remindersFlag(cmd, "default-reminders"); ok {
 					payload["default_reminders"] = v
 				}
+				if cmd.Flags().Changed("prevent-overlaps") {
+					v, _ := cmd.Flags().GetBool("prevent-overlaps")
+					payload["prevent_overlaps"] = v
+				}
 				if metadataStr != "" {
 					var meta map[string]any
 					if err := json.Unmarshal([]byte(metadataStr), &meta); err != nil {
@@ -405,6 +409,7 @@ func newCalendarsCreateCmd() *cobra.Command {
 	cmd.Flags().String("timezone", "UTC", "Calendar timezone (e.g., America/New_York)")
 	cmd.Flags().String("agent", "", "Agent ID to own the calendar")
 	addRemindersFlag(cmd, "default-reminders", "Default reminder offsets in minutes before event start (e.g. 10,1440). Max 5, each 1-40320. Omit for system default ([10]); pass an empty value (--default-reminders=) for none.")
+	cmd.Flags().Bool("prevent-overlaps", false, "Refuse any event that would overlap an active event on this calendar (double-booking guarantee). Recurring series are refused on such a calendar.")
 	cmd.Flags().String("metadata", "", "Calendar metadata as JSON string")
 
 	return cmd
@@ -447,6 +452,9 @@ func newCalendarsGetCmd() *cobra.Command {
 			if cal.ICalURL != "" {
 				fmt.Printf("iCal URL: %s\n", cal.ICalURL)
 			}
+			if cal.PreventOverlaps {
+				fmt.Printf("Overlaps: refused (prevent_overlaps)\n")
+			}
 			fmt.Printf("Created:  %s\n", cal.CreatedAt.Format("2006-01-02 15:04:05"))
 			return nil
 		},
@@ -480,6 +488,10 @@ func newCalendarsUpdateCmd() *cobra.Command {
 			if v, ok := remindersFlag(cmd, "default-reminders"); ok {
 				payload["default_reminders"] = v
 			}
+			if cmd.Flags().Changed("prevent-overlaps") {
+				v, _ := cmd.Flags().GetBool("prevent-overlaps")
+				payload["prevent_overlaps"] = v
+			}
 			if cmd.Flags().Changed("metadata") {
 				v, _ := cmd.Flags().GetString("metadata")
 				var meta map[string]any
@@ -490,7 +502,7 @@ func newCalendarsUpdateCmd() *cobra.Command {
 			}
 
 			if len(payload) == 0 {
-				return fmt.Errorf("at least one flag required: --name, --timezone, --default-reminders, --metadata")
+				return fmt.Errorf("at least one flag required: --name, --timezone, --default-reminders, --prevent-overlaps, --metadata")
 			}
 
 			body, _, err := c.Patch("/v1/calendars/"+client.PathSegment(args[0]), payload)
@@ -515,6 +527,7 @@ func newCalendarsUpdateCmd() *cobra.Command {
 	cmd.Flags().String("name", "", "New calendar name")
 	cmd.Flags().String("timezone", "", "New timezone")
 	addRemindersFlag(cmd, "default-reminders", "Default reminder offsets in minutes before event start (e.g. 10,1440). Max 5, each 1-40320. Pass an empty value (--default-reminders=) to clear.")
+	cmd.Flags().Bool("prevent-overlaps", false, "Turn the double-booking guarantee on (--prevent-overlaps) or off (--prevent-overlaps=false). Sent only when given. Turning it on is refused while the calendar holds overlapping events or a running recurring series.")
 	cmd.Flags().String("metadata", "", "New metadata as JSON string")
 
 	return cmd

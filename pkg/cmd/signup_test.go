@@ -27,6 +27,8 @@ func TestAuthSignupNewOrg(t *testing.T) {
 		assert.Equal(t, "alice@example.com", body["email"])
 		assert.Equal(t, "Alice Bot", body["agent_name"])
 		assert.Equal(t, "2026-04-17", body["tos_version"])
+		// Optional (#2651): absent unless --heard-about is set.
+		assert.NotContains(t, body, "heard_about")
 
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -50,6 +52,61 @@ func TestAuthSignupNewOrg(t *testing.T) {
 		"--output", "json",
 	})
 	require.NoError(t, rootCmd.Execute())
+}
+
+func TestAuthSignupSendsHeardAbout(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(raw, &body))
+		assert.Equal(t, "A search for calendar APIs", body["heard_about"])
+		_ = json.NewEncoder(w).Encode(map[string]any{"message": "Verification code sent to email"})
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetOut(&bytes.Buffer{})
+	rootCmd.SetArgs([]string{
+		"auth", "signup",
+		"--email", "alice@example.com",
+		"--agent-name", "Alice Bot",
+		"--tos-version", "2026-04-17",
+		"--heard-about", "A search for calendar APIs",
+		"--base-url", srv.URL,
+		"--output", "json",
+	})
+	require.NoError(t, rootCmd.Execute())
+}
+
+func TestAuthSignupCutsHeardAboutTo200Chars(t *testing.T) {
+	var sent string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		sent, _ = body["heard_about"].(string)
+		_ = json.NewEncoder(w).Encode(map[string]any{"message": "ok"})
+	}))
+	defer srv.Close()
+
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetOut(&bytes.Buffer{})
+	rootCmd.SetArgs([]string{
+		"auth", "signup", "--email", "a@example.com", "--agent-name", "Bot", "--tos-version", "v",
+		"--heard-about", strings.Repeat("é", 250),
+		"--base-url", srv.URL, "--output", "json",
+	})
+	require.NoError(t, rootCmd.Execute())
+	assert.Equal(t, strings.Repeat("é", 200), sent)
+}
+
+func TestAuthSignupAnonymousRejectsHeardAbout(t *testing.T) {
+	rootCmd := NewRootCmd("test")
+	rootCmd.SetArgs([]string{
+		"auth", "signup", "--anonymous", "--heard-about", "x",
+		"--agent-name", "P", "--tos-version", "v",
+	})
+	assert.ErrorContains(t, rootCmd.Execute(), "--heard-about goes with an email sign-up")
 }
 
 func TestAuthSignupTableShowsNewKeyOnce(t *testing.T) {

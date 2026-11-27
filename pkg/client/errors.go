@@ -22,6 +22,13 @@ type APIError struct {
 	ContactURL   string `json:"contact_url,omitempty"`
 	Metric       string `json:"metric,omitempty"`
 	Limit        int    `json:"limit,omitempty"`
+
+	// Code is the specific reason on some errors, e.g. "event_conflict" on a
+	// 409 from a calendar that refuses overlapping events.
+	Code string `json:"code,omitempty"`
+	// ConflictingEventIDs lists the events in the way (event_conflict,
+	// calendar_has_overlaps, calendar_has_recurring_series).
+	ConflictingEventIDs []string `json:"conflicting_event_ids,omitempty"`
 }
 
 // apiErrorEnvelope is the JSON envelope: {"error": {...}}
@@ -85,6 +92,9 @@ func (e *APIError) friendlyBody() string {
 		}
 		return "Authentication failed. Run `chronary auth login` to reconfigure your API key."
 	default:
+		if len(e.ConflictingEventIDs) > 0 {
+			return fmt.Sprintf("%s\nConflicting events: %s", e.Message, strings.Join(e.ConflictingEventIDs, ", "))
+		}
 		return e.Message
 	}
 }

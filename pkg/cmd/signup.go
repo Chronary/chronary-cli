@@ -36,10 +36,14 @@ or pipe it into ` + "`chronary auth login --profile <name>`" + ` yourself.`,
 			agentName, _ := cmd.Flags().GetString("agent-name")
 			tosVersion, _ := cmd.Flags().GetString("tos-version")
 			anonymous, _ := cmd.Flags().GetBool("anonymous")
+			heardAbout, _ := cmd.Flags().GetString("heard-about")
 
 			if anonymous {
 				if email != "" {
 					return fmt.Errorf("--anonymous signs up without an email: drop --email")
+				}
+				if heardAbout != "" {
+					return fmt.Errorf("--heard-about goes with an email sign-up: drop it with --anonymous")
 				}
 				return runAnonymousSignup(cmd, agentName, tosVersion)
 			}
@@ -62,6 +66,14 @@ or pipe it into ` + "`chronary auth login --profile <name>`" + ` yourself.`,
 				"email":       email,
 				"agent_name":  agentName,
 				"tos_version": tosVersion,
+			}
+			// Optional: how you found Chronary (#2651). Stored for a new org only.
+			if heardAbout != "" {
+				// Informational: cut to 200 characters so it never costs the sign-up.
+				if r := []rune(heardAbout); len(r) > 200 {
+					heardAbout = string(r[:200])
+				}
+				payload["heard_about"] = heardAbout
 			}
 
 			body, _, err := c.Post("/v1/agent/sign-up", payload)
@@ -118,6 +130,7 @@ or pipe it into ` + "`chronary auth login --profile <name>`" + ` yourself.`,
 	cmd.Flags().String("agent-name", "", "Display name of the signing-up agent, 1-100 chars (required)")
 	cmd.Flags().String("tos-version", "", "Exact ToS version string the caller has accepted (required)")
 	cmd.Flags().Bool("anonymous", false, "Sign up without an email: a claimable org with a claim URL for its owner")
+	cmd.Flags().String("heard-about", "", "Optional: how you found Chronary, plain text up to 200 chars (email sign-up only)")
 	cmd.MarkFlagRequired("agent-name")
 	cmd.MarkFlagRequired("tos-version")
 

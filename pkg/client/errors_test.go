@@ -139,6 +139,22 @@ func TestAuthenticationErrorWithoutMessageKeepsHint(t *testing.T) {
 	assert.Equal(t, "Authentication failed. Run `chronary auth login` to reconfigure your API key.", msg)
 }
 
+func TestEventConflictErrorListsConflictingEvents(t *testing.T) {
+	body := []byte(`{"error":{"type":"conflict","code":"event_conflict","message":"This calendar refuses overlapping events","conflicting_event_ids":["evt_1","evt_2"],"request_id":"req_7"}}`)
+	e := parseAPIError(&http.Response{StatusCode: 409}, body)
+	if assert.NotNil(t, e) {
+		assert.Equal(t, "event_conflict", e.Code)
+		assert.Equal(t, []string{"evt_1", "evt_2"}, e.ConflictingEventIDs)
+		msg := e.FriendlyMessage()
+		assert.Contains(t, msg, "This calendar refuses overlapping events")
+		assert.Contains(t, msg, "Conflicting events: evt_1, evt_2")
+		assert.Contains(t, msg, "(request_id: req_7)")
+	}
+
+	plain := (&APIError{Type: "conflict", Message: "Proposal is not pending"}).FriendlyMessage()
+	assert.Equal(t, "Proposal is not pending", plain)
+}
+
 func TestFriendlyMessageAppendsRequestIDForAnyType(t *testing.T) {
 	msg := (&APIError{Type: "not_found", Message: "Agent not found", RequestID: "req_9"}).FriendlyMessage()
 	assert.Contains(t, msg, "Resource not found")
